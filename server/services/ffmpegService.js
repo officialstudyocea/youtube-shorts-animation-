@@ -202,8 +202,6 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
       .seekInput(startTime)
       .duration(clipDuration)
       .outputOptions([
-        '-map 0:v:0',     // first video stream
-        '-map 0:a:0?',    // first audio stream (? = skip silently if no audio)
         '-preset fast',
         '-crf 23',
         '-pix_fmt yuv420p',
@@ -217,10 +215,10 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
     // Crop + Burn ASS subtitles
     const filters = [];
     if (aspectRatio === '1:1') {
-      filters.push("crop='min(iw,ih)':'min(iw,ih)'");
+      filters.push("crop='trunc(min(iw,ih)/2)*2':'trunc(min(iw,ih)/2)*2'");
     } else {
       // 9:16 vertical crop
-      filters.push("crop='ih*(9/16)':'ih'");
+      filters.push("crop='trunc((ih*9/16)/2)*2':'trunc(ih/2)*2'");
     }
 
     if (subtitlePath && fs.existsSync(subtitlePath)) {

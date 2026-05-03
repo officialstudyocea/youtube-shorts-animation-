@@ -229,8 +229,11 @@ async function downloadVideo(req, res) {
       return res.status(404).json({ error: 'Output file not found' });
     }
 
+    const stat = fs.statSync(filePath);
     const label = clipIdx >= 0 ? `_clip${clipIdx + 1}` : '';
-    const filename = `short${label}_${video.originalName}`;
+    const safeName = (video.originalName || 'video').replace(/[^a-zA-Z0-9.-]/g, '_');
+    const filename = `short${label}_${safeName}`;
+    res.setHeader('Content-Length', stat.size);
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Type', 'video/mp4');
     fs.createReadStream(filePath).pipe(res);

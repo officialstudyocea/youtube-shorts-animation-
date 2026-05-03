@@ -64,6 +64,18 @@ export default function UploadPage() {
 
   const isMulti = liveVideo?.mode === 'multi';
 
+  // Calculate accurate smooth progress
+  let displayProgress = liveVideo?.progress || 0;
+  if (isMulti && liveVideo?.clips?.length > 0) {
+    const total = liveVideo.clips.length;
+    const currentSum = liveVideo.clips.reduce((sum, c) => {
+      if (c.status === 'completed') return sum + 100;
+      if (c.status === 'processing') return sum + (c.progress || 0);
+      return sum;
+    }, 0);
+    displayProgress = Math.round(currentSum / total);
+  }
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-3xl mx-auto">
@@ -126,10 +138,10 @@ export default function UploadPage() {
               <div className="max-w-sm mx-auto space-y-2">
                 <div className="flex justify-between text-sm text-slate-400">
                   <span>FFmpeg rendering...</span>
-                  <span className="text-purple-400 font-bold">{liveVideo.progress || 0}%</span>
+                  <span className="text-purple-400 font-bold">{displayProgress}%</span>
                 </div>
                 <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${liveVideo.progress || 0}%` }} />
+                  <div className="progress-fill" style={{ width: `${displayProgress}%` }} />
                 </div>
               </div>
 

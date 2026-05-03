@@ -141,9 +141,10 @@ async function handleMultiClip(video) {
     const audioPath    = path.join(OUTPUTS_DIR, `audio_${clipId}.mp3`);
 
     // Update clip status
-    const fresh = (await Video.findOne({ id: video.id }))?.clips || clips;
-    fresh[i].status = 'processing';
-    await Video.updateOne({ id: video.id }, { clips: fresh });
+    const freshDoc = await Video.findOne({ id: video.id });
+    const freshClips = freshDoc?.clips ? freshDoc.clips.map(c => c.toObject ? c.toObject() : c) : clips;
+    freshClips[i].status = 'processing';
+    await Video.updateOne({ id: video.id }, { clips: freshClips });
 
     let transcriptionText = '';
     let segments = [];
@@ -174,9 +175,12 @@ async function handleMultiClip(video) {
       subtitlePath: video.options?.subtitles !== false ? subtitlePath : null,
       aspectRatio:  video.options?.aspectRatio || '9:16',
       onProgress:   async (pct) => {
-        const latest = (await Video.findOne({ id: video.id }))?.clips;
-        latest[i].progress = Math.min(pct, 90);
-        await Video.updateOne({ id: video.id }, { clips: latest });
+        const progDoc = await Video.findOne({ id: video.id });
+        const progClips = progDoc?.clips ? progDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
+        if (progClips[i]) {
+          progClips[i].progress = Math.min(pct, 90);
+          await Video.updateOne({ id: video.id }, { clips: progClips });
+        }
       },
     });
 
@@ -186,17 +190,20 @@ async function handleMultiClip(video) {
     let s3Url = outputPath;
     let s3Thumb = thumbPath;
 
-    const latest = (await Video.findOne({ id: video.id }))?.clips;
-    latest[i] = {
-      ...latest[i], status: 'completed', progress: 100,
-      outputPath: s3Url || outputPath,
-      thumbnailPath: s3Thumb || thumbPath,
-      aiAnalysis: ai,
-    };
-    await Video.updateOne({ id: video.id }, { 
-      clips: latest,
-      progress: Math.round(((i + 1) / clips.length) * 100)
-    });
+    const latestDoc = await Video.findOne({ id: video.id });
+    const latestClips = latestDoc?.clips ? latestDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
+    if (latestClips[i]) {
+      latestClips[i] = {
+        ...latestClips[i], status: 'completed', progress: 100,
+        outputPath: s3Url || outputPath,
+        thumbnailPath: s3Thumb || thumbPath,
+        aiAnalysis: ai,
+      };
+      await Video.updateOne({ id: video.id }, { 
+        clips: latestClips,
+        progress: Math.round(((i + 1) / clips.length) * 100)
+      });
+    }
   }
   await Video.updateOne({ id: video.id }, { status: 'completed', progress: 100 });
 }

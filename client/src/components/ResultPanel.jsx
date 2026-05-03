@@ -10,6 +10,7 @@ import {
   ChevronDown, ChevronUp, Play, Star
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_BASE } from '../store/useVideoStore';
 
 function CopyButton({ text, label = 'Copy', id }) {
   const [copied, setCopied] = useState(false);
@@ -64,7 +65,7 @@ export default function ResultPanel({ video }) {
         </h2>
         <a
           id="download-short-btn"
-          href={`/api/download/${video.id}`}
+          href={`${API_BASE}/api/download/${video.id}`}
           download
           className="btn-primary btn-neon text-base"
         >
@@ -83,7 +84,7 @@ export default function ResultPanel({ video }) {
             <>
               <video
                 ref={videoRef}
-                src={`/outputs/${videoFileName}`}
+                src={`${API_BASE}/outputs/${videoFileName}`}
                 playsInline
                 className="w-full h-full object-cover"
                 style={{ background: '#000' }}

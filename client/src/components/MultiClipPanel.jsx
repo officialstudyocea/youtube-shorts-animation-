@@ -12,6 +12,7 @@ import {
   ChevronDown, ChevronUp, Hash, Star, Zap, Tag, Lightbulb, Play
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { API_BASE } from '../store/useVideoStore';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ function ClipCard({ clip, videoId, index }) {
         <div className="w-14 h-14 rounded-xl bg-black/40 overflow-hidden shrink-0 flex items-center justify-center">
           {clip.hasThumb ? (
             <img
-              src={`/outputs/${clip.thumbnailFile}`}
+              src={`${API_BASE}/outputs/${clip.thumbnailFile}`}
               alt={clip.label}
               className="w-full h-full object-cover"
             />
@@ -133,7 +134,7 @@ function ClipCard({ clip, videoId, index }) {
                 }}>
                   <video
                     ref={videoRef}
-                    src={`/outputs/${clip.outputFile}`}
+                    src={`${API_BASE}/outputs/${clip.outputFile}`}
                     playsInline
                     className="w-full max-h-48 rounded-xl bg-black object-contain"
                   />
@@ -233,7 +234,7 @@ function ClipCard({ clip, videoId, index }) {
               {/* Download */}
               <a
                 id={`download-clip-${index}-btn`}
-                href={`/api/download/${videoId}?clip=${index}`}
+                href={`${API_BASE}/api/download/${videoId}?clip=${index}`}
                 download
                 className="btn-primary btn-neon w-full justify-center text-base"
               >
