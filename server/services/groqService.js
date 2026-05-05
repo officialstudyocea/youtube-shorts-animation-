@@ -127,8 +127,9 @@ async function analyzeVideo(videoData) {
       };
     } catch (err) {
       attempts++;
-      if (err.status === 401 && attempts < maxAttempts) {
-        console.warn(`[Groq] Key failed (401). Retrying with another key... (Attempt ${attempts}/${maxAttempts})`);
+      // Retry on 401 (Invalid Key) or 429 (Rate Limit)
+      if ((err.status === 401 || err.status === 429) && attempts < maxAttempts) {
+        console.warn(`[Groq] Key failed (${err.status}). Retrying with another key... (Attempt ${attempts}/${maxAttempts})`);
         continue;
       }
       console.error('[Groq] Analysis failed:', err);
@@ -178,8 +179,9 @@ async function transcribeAudio(filePath, language = null) {
       };
     } catch (err) {
       attempts++;
-      if (err.status === 401 && attempts < maxAttempts) {
-        console.warn(`[Whisper] Key failed (401). Retrying with another key... (Attempt ${attempts}/${maxAttempts})`);
+      // Retry on 401 (Invalid Key) or 429 (Rate Limit)
+      if ((err.status === 401 || err.status === 429) && attempts < maxAttempts) {
+        console.warn(`[Whisper] Key failed (${err.status}). Retrying with another key... (Attempt ${attempts}/${maxAttempts})`);
         continue;
       }
       console.error('[Whisper] Transcription failed:', err);

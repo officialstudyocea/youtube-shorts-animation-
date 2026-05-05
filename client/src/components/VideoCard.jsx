@@ -71,11 +71,12 @@ export default function VideoCard({ video, onClick }) {
     >
       {/* Thumbnail / Placeholder */}
       <div className="relative aspect-square bg-slate-900/60 overflow-hidden">
-        {video.hasThumb || (video.mode === 'multi' && video.clips?.[0]?.hasThumb) ? (
+        {video.hasThumb || (video.mode === 'multi' && (video.clips || [])[0]?.hasThumb) ? (
           <img
-            src={`/outputs/${video.thumbnailFile || video.clips?.[0]?.thumbnailFile}`}
+            src={`/outputs/${video.thumbnailFile || (video.clips || [])[0]?.thumbnailFile}`}
             alt="thumbnail"
             className="w-full h-full object-cover"
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">

@@ -84,9 +84,7 @@ export default function UploadPage() {
           <h1 className="text-4xl font-black text-white mb-2">
             Create <span className="gradient-text">Viral Shorts</span> 🎬
           </h1>
-          <p className="text-slate-500 text-base">
-            Upload a 16:9 clip → auto-crop to 1:1 → burn subtitles → AI recommendations
-          </p>
+
         </motion.div>
 
         <StepDots current={step} />

@@ -76,8 +76,8 @@ export default function ResultPanel({ video }) {
       {/* Video preview + score */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <div
-          className="relative glass rounded-2xl overflow-hidden group cursor-pointer mx-auto w-1/2 md:w-[60%]"
-          style={{ aspectRatio: '1/1' }}
+          className="relative glass rounded-2xl overflow-hidden group cursor-pointer mx-auto w-full md:w-[65%]"
+          style={{ aspectRatio: '9/16' }}
           onClick={togglePlay}
         >
           {videoFileName ? (
@@ -86,6 +86,7 @@ export default function ResultPanel({ video }) {
                 ref={videoRef}
                 src={`${API_BASE}/outputs/${videoFileName}`}
                 playsInline
+                crossOrigin="anonymous"
                 className="w-full h-full object-cover"
                 style={{ background: '#000' }}
                 onPlay={() => setIsPlaying(true)}

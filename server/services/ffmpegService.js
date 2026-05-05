@@ -24,8 +24,12 @@ try {
 } catch (e) {
   // 2. Fallback to static if system version is missing
   console.warn('⚠️  System FFmpeg not found, falling back to static binaries.');
-  ffmpegPath = require('ffmpeg-static');
-  ffprobePath = require('ffprobe-static').path;
+  try {
+    ffmpegPath = require('ffmpeg-static');
+    ffprobePath = require('ffprobe-static').path;
+  } catch (err) {
+    console.error('❌ Failed to load static FFmpeg binaries:', err.message);
+  }
 }
 
 // 3. Allow manual overrides via Env
@@ -101,7 +105,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Impact,64,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,110,110,0,0,1,4,2,2,60,60,100,1
+Style: Default,Arial Black,64,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,110,110,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -147,7 +151,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Impact,64,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,110,110,0,0,1,4,2,2,60,60,100,1
+Style: Default,Arial Black,64,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,110,110,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -219,7 +223,7 @@ function appendSubscribeOverlay(assPath, videoDuration) {
 
   // Inject a Subscribe style (bottom-centre, large font) after the Default style
   const subscribeStyle =
-    'Style: Subscribe,Impact,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,540,540,160,1';
+    'Style: Subscribe,Arial Black,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,540,540,160,1';
   content = content.replace(/^(Style: Default.+)$/m, `$1\n${subscribeStyle}`);
 
   // Append dialogue events
@@ -233,20 +237,23 @@ function appendSubscribeOverlay(assPath, videoDuration) {
  */
 function extractAudioClip(inputPath, outputPath, startTime = 0, duration = 40) {
   return new Promise((resolve, reject) => {
+    // Ensure we use the correct format for WAV
     ffmpeg(inputPath)
       .seekInput(startTime)
       .duration(Math.min(duration, 40))
       .noVideo()
-      .audioCodec('pcm_s16le') // 🎙 Switch to WAV for better AI accuracy
+      .toFormat('wav')
       .audioChannels(1)
       .audioFrequency(16000)
-      .output(outputPath)
       .on('end', () => {
         console.log(`✅ Audio extracted to ${outputPath}`);
         resolve(outputPath);
       })
-      .on('error', (err) => reject(new Error(`Audio extraction failed: ${err.message}`)))
-      .run();
+      .on('error', (err) => {
+        console.error(`[FFmpeg] Audio extraction failed: ${err.message}`);
+        reject(new Error(`Audio extraction failed: ${err.message}`));
+      })
+      .save(outputPath);
   });
 }
 
@@ -299,12 +306,22 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
         }
       }
       console.log('📝 Burning subtitles from:', subtitlePath);
-      const escaped = subtitlePath
-        .replace(/\\/g, '/')
-        .replace(/:/g, '\\:')
-        .replace(/ /g, '\\ ');
-      // Use a generic font name that is installed on Railway (DejaVu Sans)
-      filters.push(`ass='${escaped}':fontsdir=/usr/share/fonts`);
+      
+      const isWindows = process.platform === 'win32';
+      let escaped = subtitlePath.replace(/\\/g, '/');
+      
+      if (isWindows) {
+        // Windows needs special escaping for the colon and sometimes double escaping
+        // format: C\:/path/to/sub.ass
+        escaped = escaped.replace(':', '\\:');
+      }
+
+      // On Railway/Linux we need the fontsdir, but on Windows we don't (it uses system fonts)
+      const assFilter = isWindows 
+        ? `ass='${escaped}'`
+        : `ass='${escaped}':fontsdir=/usr/share/fonts`;
+      
+      filters.push(assFilter);
     }
     cmd = cmd.videoFilters(filters);
 

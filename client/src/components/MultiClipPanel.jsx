@@ -56,7 +56,7 @@ function ViralRing({ score }) {
 
 // ── Single clip card ──────────────────────────────────────────────────────────
 
-function ClipCard({ clip, videoId, index }) {
+function ClipCard({ clip, videoId, index, videoDuration }) {
   const [open, setOpen] = useState(false);
   const videoRef = useRef(null);
   const ai = clip.aiAnalysis || {};
@@ -76,9 +76,10 @@ function ClipCard({ clip, videoId, index }) {
         <div className="w-14 h-14 rounded-xl bg-black/40 overflow-hidden shrink-0 flex items-center justify-center">
           {clip.hasThumb ? (
             <img
-              src={`${API_BASE}/outputs/${clip.thumbnailFile}`}
+              src={clip.thumbnailFile ? `${API_BASE}/outputs/${clip.thumbnailFile}` : ''}
               alt={clip.label}
               className="w-full h-full object-cover"
+              onError={(e) => { e.target.src = ''; }}
             />
           ) : (
             <Play size={20} className="text-slate-600" />
@@ -91,7 +92,7 @@ function ClipCard({ clip, videoId, index }) {
             <ClipStatus status={clip.status} progress={clip.progress} />
           </div>
           <p className="text-sm text-slate-500">
-            {clip.startTime}s → {clip.startTime + clip.duration}s · {clip.duration}s
+            {clip.startTime || 0}s → {((clip.startTime || 0) + (clip.duration || 0)).toFixed(1)}s · {clip.duration || 0}s
           </p>
           {clip.status === 'processing' && (
             <div className="progress-bar mt-2">
@@ -134,8 +135,9 @@ function ClipCard({ clip, videoId, index }) {
                 }}>
                   <video
                     ref={videoRef}
-                    src={`${API_BASE}/outputs/${clip.outputFile}`}
+                    src={clip.outputFile ? `${API_BASE}/outputs/${clip.outputFile}` : ''}
                     playsInline
+                    crossOrigin="anonymous"
                     className="w-full max-h-48 rounded-xl bg-black object-contain"
                   />
                   <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/20 transition-all opacity-0 group-hover:opacity-100">
@@ -180,14 +182,14 @@ function ClipCard({ clip, videoId, index }) {
               <div className="space-y-1.5 px-1">
                 <div className="flex justify-between text-[11px] text-slate-500 font-mono">
                   <span>Start: {clip.startTime}s</span>
-                  <span>End: {(clip.startTime + (ai.suggestedDuration || clip.duration)).toFixed(1)}s</span>
+                  <span>End: {((clip.startTime || 0) + (ai.suggestedDuration || clip.duration || 0)).toFixed(1)}s</span>
                 </div>
                 <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden relative">
                   <div
                     className="absolute h-full bg-gradient-to-r from-purple-500 to-pink-500"
                     style={{
-                      left: `${(clip.startTime / (video.duration || 1)) * 100}%`,
-                      width: `${((ai.suggestedDuration || clip.duration) / (video.duration || 1)) * 100}%`
+                      left: `${((clip.startTime || 0) / (videoDuration || 1)) * 100}%`,
+                      width: `${((ai.suggestedDuration || clip.duration || 0) / (videoDuration || 1)) * 100}%`
                     }}
                   />
                 </div>
@@ -295,7 +297,7 @@ export default function MultiClipPanel({ video }) {
       {/* Clip cards */}
       <div className="space-y-3">
         {video.clips.map((clip, i) => (
-          <ClipCard key={i} clip={clip} videoId={video.id} index={i} />
+          <ClipCard key={i} clip={clip} videoId={video.id} index={i} videoDuration={video.duration} />
         ))}
       </div>
     </motion.div>

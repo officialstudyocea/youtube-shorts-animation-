@@ -85,18 +85,22 @@ async function handleSingleClip(video) {
 
   // 1. Transcribe (Groq)
   if (video.options?.subtitles !== false) {
-    const wavPath = audioPath.replace('.mp3', '.wav');
-    console.log(`[Whisper] Transcribing ${video.id}...`);
-    await extractAudioClip(video.originalPath, wavPath, video.options?.trimStart || 0, 40);
-    const transcription = await transcribeAudio(wavPath, video.options?.language);
-    
-    transcriptionText = transcription.text;
-    segments = transcription.segments || [];
-    words = transcription.words || [];
-    
-    console.log(`[Whisper] Done. Found ${segments.length} segments and ${words.length} words.`);
-    
-    if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+    try {
+      const wavPath = audioPath.replace('.mp3', '.wav');
+      console.log(`[Whisper] Transcribing ${video.id}...`);
+      await extractAudioClip(video.originalPath, wavPath, video.options?.trimStart || 0, 40);
+      const transcription = await transcribeAudio(wavPath, video.options?.language);
+      
+      transcriptionText = transcription.text;
+      segments = transcription.segments || [];
+      words = transcription.words || [];
+      
+      console.log(`[Whisper] Done. Found ${segments.length} segments and ${words.length} words.`);
+      
+      if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+    } catch (whisperErr) {
+      console.warn(`[Whisper] Transcription failed for ${video.id}, continuing without captions:`, whisperErr.message);
+    }
   }
 
   // 2. Analyze & Generate Creative Content (Tiered AI)
@@ -174,18 +178,22 @@ async function handleMultiClip(video) {
       let words = [];
 
       if (video.options?.subtitles !== false) {
-        const wavPath = audioPath.replace('.mp3', '.wav');
-        console.log(`[Whisper-Multi] Clip ${i}: Extracting audio from ${clip.startTime}s...`);
-        await extractAudioClip(video.originalPath, wavPath, clip.startTime, clip.duration || 40);
-        const transcription = await transcribeAudio(wavPath, video.options?.language);
-        
-        transcriptionText = transcription.text;
-        segments = transcription.segments || [];
-        words = transcription.words || [];
-        
-        console.log(`[Whisper-Multi] Clip ${i}: Found ${segments.length} segments and ${words.length} words.`);
-        
-        if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+        try {
+          const wavPath = audioPath.replace('.mp3', '.wav');
+          console.log(`[Whisper-Multi] Clip ${i}: Extracting audio from ${clip.startTime}s...`);
+          await extractAudioClip(video.originalPath, wavPath, clip.startTime, clip.duration || 40);
+          const transcription = await transcribeAudio(wavPath, video.options?.language);
+          
+          transcriptionText = transcription.text;
+          segments = transcription.segments || [];
+          words = transcription.words || [];
+          
+          console.log(`[Whisper-Multi] Clip ${i}: Found ${segments.length} segments and ${words.length} words.`);
+          
+          if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+        } catch (whisperErr) {
+          console.warn(`[Whisper-Multi] Clip ${i}: Transcription failed, skipping captions:`, whisperErr.message);
+        }
       }
 
       // Use safe fallback for AI analysis (prevents rate-limit crashes)

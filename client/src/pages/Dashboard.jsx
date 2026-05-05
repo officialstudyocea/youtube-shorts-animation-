@@ -71,9 +71,7 @@ export default function Dashboard() {
               Turn Clips into<br />
               <span className="gradient-text">Viral Shorts</span> 🚀
             </h1>
-            <p className="text-slate-400 text-lg mb-6 max-w-xl">
-            Upload → Auto-crop to 1:1 → Burn subtitles → Get AI-powered titles, hashtags & viral score. All in seconds.
-          </p>
+
             <Link to="/upload" id="get-started-btn" className="btn-primary btn-neon text-base px-8 py-4 shadow-xl shadow-purple-500/30">
               <Upload size={20} /> <span>Start Creating</span> <ArrowRight size={18} />
             </Link>

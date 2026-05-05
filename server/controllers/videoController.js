@@ -150,6 +150,8 @@ async function getVideoStatus(req, res) {
       clips: (video.clips || []).map((c) => ({
         clipIndex: c.clipIndex,
         label: c.label,
+        startTime: c.startTime,
+        duration: c.duration,
         status: c.status,
         progress: c.progress,
         error: c.error,
