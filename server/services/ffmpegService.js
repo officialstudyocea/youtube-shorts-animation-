@@ -13,23 +13,30 @@ const path   = require('path');
 const fs     = require('fs');
 
 // ── FFmpeg binaries ─────────────────────────────────────────────────────────
-// On Railway/Linux, the system FFmpeg is more reliable for subtitles (libass).
-const ffmpegPath  = process.env.FFMPEG_PATH  || 'ffmpeg'; 
-const ffprobePath = process.env.FFPROBE_PATH || 'ffprobe';
+let ffmpegPath = 'ffmpeg';
+let ffprobePath = 'ffprobe';
 
+// 1. Check for system FFmpeg (Railway/Linux)
 try {
-  ffmpeg.setFfmpegPath(ffmpegPath);
-  ffmpeg.setFfprobePath(ffprobePath);
+  const { execSync } = require('child_process');
+  execSync('ffmpeg -version', { stdio: 'ignore' });
+  console.log('✅ Using System FFmpeg');
 } catch (e) {
-  // Fallback to static if system version is missing
-  const staticFF = require('ffmpeg-static');
-  const staticFP = require('ffprobe-static').path;
-  ffmpeg.setFfmpegPath(staticFF);
-  ffmpeg.setFfprobePath(staticFP);
+  // 2. Fallback to static if system version is missing
+  console.warn('⚠️  System FFmpeg not found, falling back to static binaries.');
+  ffmpegPath = require('ffmpeg-static');
+  ffprobePath = require('ffprobe-static').path;
 }
 
-console.log('🎬 FFmpeg  :', ffmpegPath);
-console.log('🔍 FFprobe :', ffprobePath);
+// 3. Allow manual overrides via Env
+ffmpegPath = process.env.FFMPEG_PATH || ffmpegPath;
+ffprobePath = process.env.FFPROBE_PATH || ffprobePath;
+
+ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath);
+
+console.log('🎬 FFmpeg Path:', ffmpegPath);
+console.log('🔍 FFprobe Path:', ffprobePath);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
