@@ -85,13 +85,18 @@ async function handleSingleClip(video) {
 
   // 1. Transcribe (Groq)
   if (video.options?.subtitles !== false) {
+    const wavPath = audioPath.replace('.mp3', '.wav');
     console.log(`[Whisper] Transcribing ${video.id}...`);
-    await extractAudioClip(video.originalPath, audioPath, video.options?.trimStart || 0, 40);
-    const transcription = await transcribeAudio(audioPath, video.options?.language);
+    await extractAudioClip(video.originalPath, wavPath, video.options?.trimStart || 0, 40);
+    const transcription = await transcribeAudio(wavPath, video.options?.language);
+    
     transcriptionText = transcription.text;
-    segments = transcription.segments;
-    words = transcription.words;
-    if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
+    segments = transcription.segments || [];
+    words = transcription.words || [];
+    
+    console.log(`[Whisper] Done. Found ${segments.length} segments and ${words.length} words.`);
+    
+    if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
   }
 
   // 2. Analyze & Generate Creative Content (Tiered AI)
@@ -151,12 +156,17 @@ async function handleMultiClip(video) {
     let words = [];
 
     if (video.options?.subtitles !== false) {
-      await extractAudioClip(video.originalPath, audioPath, clip.startTime, 40);
-      const transcription = await transcribeAudio(audioPath, video.options?.language);
+      const wavPath = audioPath.replace('.mp3', '.wav');
+      await extractAudioClip(video.originalPath, wavPath, clip.startTime, 40);
+      const transcription = await transcribeAudio(wavPath, video.options?.language);
+      
       transcriptionText = transcription.text;
-      segments = transcription.segments;
-      words = transcription.words;
-      if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
+      segments = transcription.segments || [];
+      words = transcription.words || [];
+      
+      console.log(`[Whisper-Multi] Clip ${i}: Found ${segments.length} segments.`);
+      
+      if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
     }
 
     const analysis = await analyzeVideo({ originalName: clip.label, duration: clip.duration, transcript: transcriptionText });

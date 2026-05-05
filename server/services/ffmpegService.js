@@ -187,12 +187,14 @@ function extractAudioClip(inputPath, outputPath, startTime = 0, duration = 40) {
       .seekInput(startTime)
       .duration(Math.min(duration, 40))
       .noVideo()
-      .audioCodec('libmp3lame')
-      .audioBitrate('64k')
+      .audioCodec('pcm_s16le') // 🎙 Switch to WAV for better AI accuracy
       .audioChannels(1)
-      .audioFrequency(16000)  // Whisper works best at 16 kHz
+      .audioFrequency(16000)
       .output(outputPath)
-      .on('end', resolve)
+      .on('end', () => {
+        console.log(`✅ Audio extracted to ${outputPath}`);
+        resolve(outputPath);
+      })
       .on('error', (err) => reject(new Error(`Audio extraction failed: ${err.message}`)))
       .run();
   });
@@ -240,11 +242,13 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
     }
 
     if (subtitlePath && fs.existsSync(subtitlePath)) {
+      console.log('📝 Burning subtitles from:', subtitlePath);
       const escaped = subtitlePath
         .replace(/\\/g, '/')
         .replace(/:/g, '\\:')
         .replace(/ /g, '\\ ');
-      filters.push(`ass='${escaped}'`);
+      // Use a generic font name that is installed on Railway (DejaVu Sans)
+      filters.push(`ass='${escaped}':fontsdir=/usr/share/fonts`);
     }
     cmd = cmd.videoFilters(filters);
 
