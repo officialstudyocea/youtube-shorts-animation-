@@ -8,6 +8,7 @@ require('dotenv').config();
 const express  = require('express');
 const cors     = require('cors');
 const path     = require('path');
+const fs       = require('fs');
 const mongoose = require('mongoose');
 
 const app  = express();
@@ -60,6 +61,7 @@ mongoose
   .finally(() => {
     // Load routes AFTER DB is decided so controllers get the right model
     const videoRoutes = require('./routes/videoRoutes');
+    require('./worker'); // Initialize background worker
     app.use('/api', videoRoutes);
 
     // Global error handler
@@ -67,6 +69,28 @@ mongoose
       console.error('[Unhandled Error]', err.message);
       res.status(500).json({ error: 'Internal server error', details: err.message });
     });
+
+    // Ensure directories exist
+    const uploadsDir = path.join(__dirname, 'uploads');
+    const outputsDir = path.join(__dirname, 'outputs');
+    if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+    if (!fs.existsSync(outputsDir)) fs.mkdirSync(outputsDir, { recursive: true });
+
+    // ── Serve Frontend (Client) ────────────────────────────────────────────────
+    const clientDist = path.join(__dirname, '../client/dist');
+    if (fs.existsSync(clientDist)) {
+      console.log('🌐 Serving frontend from:', clientDist);
+      app.use(express.static(clientDist));
+      // Catch-all for React Router
+      app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api') && !req.path.startsWith('/outputs')) {
+          res.sendFile(path.join(clientDist, 'index.html'));
+        }
+      });
+    } else {
+      console.warn('⚠️  Frontend build not found at:', clientDist);
+      console.warn('Run "npm run build" in the root directory to build the frontend.');
+    }
 
     app.listen(PORT, () => {
       console.log(`🚀  Server  →  http://localhost:${PORT}`);

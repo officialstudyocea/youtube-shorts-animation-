@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "YouTube Shorts Automation - Root",
   "scripts": {
-    "install": "cd server && npm install",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "build": "cd client && npm install && npm run build",
     "start": "cd server && node index.js"
   },
   "engines": {
