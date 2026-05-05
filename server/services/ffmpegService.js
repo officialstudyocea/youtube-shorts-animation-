@@ -212,11 +212,12 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
       .seekInput(startTime)
       .duration(clipDuration)
       .outputOptions([
-        '-preset fast',
-        '-crf 23',
+        '-preset ultrafast', // 🚀 Max speed
+        '-crf 26',           // Slightly lower quality for much faster render
         '-pix_fmt yuv420p',
         '-movflags +faststart',
         '-r 30',
+        '-threads 0',        // Use all available CPU cores
       ])
       .videoCodec('libx264')
       .audioCodec('aac')
