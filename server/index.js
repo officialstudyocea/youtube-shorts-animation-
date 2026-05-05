@@ -77,22 +77,26 @@ mongoose
     if (!fs.existsSync(outputsDir)) fs.mkdirSync(outputsDir, { recursive: true });
 
     // ── Serve Frontend (Client) ────────────────────────────────────────────────
-    const clientDist = path.join(__dirname, '../client/dist');
+    const clientDist = path.resolve(__dirname, '../client/dist');
+    console.log('📂 Checking for frontend at:', clientDist);
+
     if (fs.existsSync(clientDist)) {
-      console.log('🌐 Serving frontend from:', clientDist);
+      console.log('✅ Frontend dist found. Serving static files.');
       app.use(express.static(clientDist));
-      // Catch-all for React Router
+      
+      // Catch-all for React Router (only for non-file requests)
       app.get('*', (req, res) => {
-        if (!req.path.startsWith('/api') && !req.path.startsWith('/outputs')) {
-          res.sendFile(path.join(clientDist, 'index.html'));
+        // If it's an API, Output, or has a file extension (like .js, .css, .png), skip it
+        if (req.path.startsWith('/api') || req.path.startsWith('/outputs') || req.path.includes('.')) {
+          return res.status(404).json({ error: 'Not found' });
         }
+        res.sendFile(path.join(clientDist, 'index.html'));
       });
     } else {
-      console.warn('⚠️  Frontend build not found at:', clientDist);
-      console.warn('Run "npm run build" in the root directory to build the frontend.');
+      console.warn('❌ Frontend build NOT found at:', clientDist);
     }
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀  Server  →  http://localhost:${PORT}`);
       console.log(`📡  API     →  http://localhost:${PORT}/api`);
       console.log(`💾  DB      →  ${global.__DB_DRIVER__ === 'mongoose' ? 'MongoDB' : 'In-Memory'}`);
