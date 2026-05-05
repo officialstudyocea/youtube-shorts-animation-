@@ -105,7 +105,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,64,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,110,110,0,0,1,4,2,2,60,60,100,1
+Style: Default,Arial,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -151,7 +151,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,64,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,110,110,0,0,1,4,2,2,60,60,100,1
+Style: Default,Arial,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -191,45 +191,81 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
  * @param {number} videoDuration  Total clip duration in seconds
  */
 function appendSubscribeOverlay(assPath, videoDuration) {
-  const start = Math.max(1, Math.floor(videoDuration / 2) - 1); // midpoint - 1s
-  const end   = start + 3;                                        // show for 3s
+  const start = Math.max(1, Math.floor(videoDuration / 2) - 1.5); // centered window
+  const duration = 3.5;
+  const end = start + duration;
 
   const fmt = (sec) => {
-    const h  = Math.floor(sec / 3600).toString().padStart(1, '0');
-    const m  = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+    const h = Math.floor(sec / 3600).toString().padStart(1, '0');
+    const m = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
     const s2 = (sec % 60).toFixed(2).toString().padStart(5, '0');
     return `${h}:${m}:${s2}`;
   };
 
-  // ASS drawing: a rounded red pill shape centred at bottom (Alignment 2 = bottom-centre)
-  // DrawScale 1 unit ≈ 1px at PlayRes 1080. The box is ~620×84px centred.
-  const bgDraw =
-    '{\\bord0\\shad0\\1c&H0000FF&\\3c&H0000FF&\\4c&H80000000&' +
-    '\\1a&H00&\\3a&H00&\\4a&H55&\\p1}' +
-    'm -310 -42 b -310 -42 -330 -42 -330 -22 l -330 22 b -330 42 -310 42 -310 42 ' +
-    'l 310 42 b 330 42 330 22 330 22 l 330 -22 b 330 -42 310 -42 310 -42 z' +
-    '{\\p0}';
+  const t_start = start;
+  const t_click = start + 1.2;    // click moment
+  const t_done  = start + 1.4;    // state change
+  const t_end   = end;
 
-  // Animated text: scale-bounce in then out
-  const textAnim =
-    '{\\b1\\1c&H00FFFFFF&\\shad0\\bord0' +
-    '\\fscx0\\fscy0\\t(0,120,\\fscx108\\fscy108)\\t(120,180,\\fscx100\\fscy100)}' +
-    '🔴 SUBSCRIBE';
+  // --- STYLES ---
+  // Red Button Style
+  const redBtnStyle = '{\\bord2\\3c&H000000&\\shad0\\1c&H2222FF&\\p1}'; // BGR: FF2222 is red
+  // Grey Button Style
+  const greyBtnStyle = '{\\bord2\\3c&H000000&\\shad0\\1c&H888888&\\p1}';
 
-  const boxLine  = `Dialogue: 0,${fmt(start)},${fmt(end)},Subscribe,,0,0,0,,${bgDraw}`;
-  const textLine = `Dialogue: 1,${fmt(start)},${fmt(end)},Subscribe,,0,0,0,,${textAnim}`;
+  // Rounded Rect Path (600x100)
+  const pillPath = 'm -300 -50 b -320 -50 -320 50 -300 50 l 300 50 b 320 50 320 -50 300 -50 z';
+
+  // Mouse Cursor Path (Clean Arrow)
+  const cursorPath = 'm 0 0 l 0 22 l 6 17 l 11 27 l 15 25 l 10 15 l 20 15 z';
+  const cursorDraw = `{\\bord1\\3c&H000000&\\1c&HFFFFFF&\\p1}${cursorPath}{\\p0}`;
+
+  // --- EVENTS ---
+  let events = '';
+
+  // 1. THE BUTTON BOX (Red -> Grey)
+  // Red state box
+  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\fscx0\\fscy0\\t(0,200,\\fscx100\\fscy100)}${redBtnStyle}${pillPath}{\\p0}\n`;
+  // Grey state box
+  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${greyBtnStyle}${pillPath}{\\p0}\n`;
+
+  // 2. THE TEXT (SUBSCRIBE -> SUBSCRIBED)
+  // "SUBSCRIBE" (Red state)
+  events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\b1\\fscx0\\fscy0\\t(50,250,\\fscx100\\fscy100)}SUBSCRIBE\n`;
+  // "SUBSCRIBED" (Grey state)
+  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\b1\\1c&HCCCCCC&}SUBSCRIBED ✓\n`;
+
+  // 3. THE CURSOR ANIMATION
+  // Moves from (700, 800) to center (540, 880 relative to PlayRes)
+  // In ASS, we use \move(x1, y1, x2, y2, t1, t2)
+  // Layer 2 to be on top
+  const cursorX1 = 300, cursorY1 = 100; // start offset
+  const cursorX2 = 20,  cursorY2 = 20;  // click position offset from center
+  
+  // Cursor phases:
+  // Move in: t_start -> t_click
+  // Click (scale down): t_click -> t_click+100
+  // Move out: t_done -> t_done+500
+  
+  events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\an1\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1000)}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\an1\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an1\\move(${cursorX2},${cursorY2},${cursorX1},${cursorY1},0,500)\\alpha&HAA&}${cursorDraw}\n`;
 
   let content = fs.readFileSync(assPath, 'utf8');
 
-  // Inject a Subscribe style (bottom-centre, large font) after the Default style
-  const subscribeStyle =
-    'Style: Subscribe,Arial Black,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,540,540,160,1';
-  content = content.replace(/^(Style: Default.+)$/m, `$1\n${subscribeStyle}`);
+  // Inject/Update Subscribe style
+  const subscribeStyle = 'Style: Subscribe,Impact,50,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,540,540,150,1';
+  
+  if (content.includes('Style: Subscribe')) {
+    content = content.replace(/^Style: Subscribe.+$/m, subscribeStyle);
+  } else {
+    content = content.replace(/^(Style: Default.+)$/m, `$1\n${subscribeStyle}`);
+  }
 
   // Append dialogue events
-  content = content.trimEnd() + `\n${boxLine}\n${textLine}\n`;
+  content = content.trimEnd() + '\n' + events;
   fs.writeFileSync(assPath, content, 'utf8');
-  console.log(`[Subscribe] 🔴 Overlay injected at ${fmt(start)}–${fmt(end)} (duration=${videoDuration}s)`);
+  console.log(`[Subscribe] 🖱️ Cursor click animation injected at ${fmt(start)}`);
 }
 
 /**
@@ -316,11 +352,13 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
         escaped = escaped.replace(':', '\\:');
       }
 
-      // On Railway/Linux we need the fontsdir, but on Windows we don't (it uses system fonts)
+      // On Windows, the path needs to be escaped for colons and then the whole filter string quoted.
+      // We use a more robust escaping pattern here.
       const assFilter = isWindows 
-        ? `ass='${escaped}'`
+        ? `ass='${escaped}'` 
         : `ass='${escaped}':fontsdir=/usr/share/fonts`;
       
+      console.log(`[FFmpeg] Using ASS filter: ${assFilter}`);
       filters.push(assFilter);
     }
     cmd = cmd.videoFilters(filters);

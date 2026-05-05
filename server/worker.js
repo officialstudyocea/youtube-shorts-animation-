@@ -110,7 +110,13 @@ async function handleSingleClip(video) {
   const ai = { ...analysis, ...creative };
 
   if (video.options?.subtitles !== false) {
-    writeTimedSubtitles(segments, subtitlePath, video.options?.captionStyle, words);
+    const hasData = (segments && segments.length > 0) || (words && words.length > 0);
+    if (hasData) {
+      console.log(`[Worker] Writing ${segments.length} segments / ${words.length} words to ${subtitlePath}`);
+      writeTimedSubtitles(segments, subtitlePath, video.options?.captionStyle, words);
+    } else {
+      console.warn(`[Worker] No transcription data found for ${video.id}, skipping subtitle file.`);
+    }
   }
 
   const finalDuration = ai.suggestedDuration || video.options?.trimDuration || 30;
@@ -221,8 +227,14 @@ async function handleMultiClip(video) {
 
       const ai = { ...analysis, ...creative };
 
-      if (video.options?.subtitles !== false && segments.length > 0) {
-        writeTimedSubtitles(segments, subtitlePath, video.options?.captionStyle, words);
+      if (video.options?.subtitles !== false) {
+        const hasData = (segments && segments.length > 0) || (words && words.length > 0);
+        if (hasData) {
+          console.log(`[Worker-Multi] Clip ${i}: Writing ${segments.length} segments / ${words.length} words to ${subtitlePath}`);
+          writeTimedSubtitles(segments, subtitlePath, video.options?.captionStyle, words);
+        } else {
+          console.warn(`[Worker-Multi] Clip ${i}: No transcription data found, skipping subtitle file.`);
+        }
       }
 
       console.log(`[Worker-Multi] Clip ${i}: FFmpeg processing startTime=${clip.startTime}s duration=${clip.duration}s...`);

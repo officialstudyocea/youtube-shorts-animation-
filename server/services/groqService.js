@@ -162,7 +162,12 @@ async function transcribeAudio(filePath, language = null) {
 
       const transcription = await client.audio.transcriptions.create(options);
       
-      console.log(`[Whisper] Transcribed ${path.basename(filePath)}: "${(transcription.text || '').substring(0, 50)}..." (${transcription.segments?.length || 0} segments)`);
+      const textSnippet = (transcription.text || '').substring(0, 50);
+      const segmentCount = transcription.segments?.length || 0;
+      const wordCount = transcription.words?.length || 0;
+
+      console.log(`[Whisper] API Response: "${textSnippet}..."`);
+      console.log(`[Whisper] Stats: ${segmentCount} segments, ${wordCount} words.`);
 
       return {
         text: transcription.text || '',
