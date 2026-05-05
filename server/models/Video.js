@@ -88,6 +88,7 @@ const videoSchema = new mongoose.Schema(
       language:     { type: String, default: 'en' },
       captionStyle: { type: String, default: 'modern' },
       subtitles:    { type: Boolean, default: true },
+      aspectRatio:  { type: String, default: '9:16' },
     },
   },
   { timestamps: true }

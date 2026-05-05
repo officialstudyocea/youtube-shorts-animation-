@@ -138,84 +138,155 @@ async function handleSingleClip(video) {
 
 async function handleMultiClip(video) {
   const clips = video.clips || [];
+  console.log(`[Worker-Multi] Starting multi-clip processing: ${clips.length} clips to process`);
+
+  if (clips.length === 0) {
+    console.warn('[Worker-Multi] No clips defined – nothing to process.');
+    await Video.updateOne({ id: video.id }, { status: 'completed', progress: 100 });
+    return;
+  }
+
   for (let i = 0; i < clips.length; i++) {
     const clip = clips[i];
     const clipId = `${video.id}_c${i}`;
+    console.log(`[Worker-Multi] ── Clip ${i + 1}/${clips.length}: "${clip.label}" startTime=${clip.startTime}s duration=${clip.duration}s`);
+
     const outputPath   = path.join(OUTPUTS_DIR, `short_${clipId}.mp4`);
     const subtitlePath = path.join(OUTPUTS_DIR, `sub_${clipId}.ass`);
     const audioPath    = path.join(OUTPUTS_DIR, `audio_${clipId}.mp3`);
 
-    // Update clip status
-    const freshDoc = await Video.findOne({ id: video.id });
-    const freshClips = freshDoc?.clips ? freshDoc.clips.map(c => c.toObject ? c.toObject() : c) : clips;
-    freshClips[i].status = 'processing';
-    await Video.updateOne({ id: video.id }, { clips: freshClips });
-
-    let transcriptionText = '';
-    let segments = [];
-    let words = [];
-
-    if (video.options?.subtitles !== false) {
-      const wavPath = audioPath.replace('.mp3', '.wav');
-      await extractAudioClip(video.originalPath, wavPath, clip.startTime, 40);
-      const transcription = await transcribeAudio(wavPath, video.options?.language);
-      
-      transcriptionText = transcription.text;
-      segments = transcription.segments || [];
-      words = transcription.words || [];
-      
-      console.log(`[Whisper-Multi] Clip ${i}: Found ${segments.length} segments.`);
-      
-      if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+    // Update clip status to 'processing'
+    try {
+      const freshDoc = await Video.findOne({ id: video.id });
+      const freshClips = freshDoc?.clips ? freshDoc.clips.map(c => c.toObject ? c.toObject() : c) : clips.map(c => ({ ...c }));
+      if (freshClips[i]) {
+        freshClips[i].status = 'processing';
+        freshClips[i].progress = 0;
+        await Video.updateOne({ id: video.id }, { clips: freshClips });
+      }
+    } catch (e) {
+      console.warn(`[Worker-Multi] Could not update clip ${i} status:`, e.message);
     }
 
-    const analysis = await analyzeVideo({ originalName: clip.label, duration: clip.duration, transcript: transcriptionText });
-    const creative = await getAIContent({ originalName: clip.label, transcript: transcriptionText });
-    const ai = { ...analysis, ...creative };
+    try {
+      let transcriptionText = '';
+      let segments = [];
+      let words = [];
 
-    if (video.options?.subtitles !== false) {
-      writeTimedSubtitles(segments, subtitlePath, video.options?.captionStyle, words);
-    }
+      if (video.options?.subtitles !== false) {
+        const wavPath = audioPath.replace('.mp3', '.wav');
+        console.log(`[Whisper-Multi] Clip ${i}: Extracting audio from ${clip.startTime}s...`);
+        await extractAudioClip(video.originalPath, wavPath, clip.startTime, clip.duration || 40);
+        const transcription = await transcribeAudio(wavPath, video.options?.language);
+        
+        transcriptionText = transcription.text;
+        segments = transcription.segments || [];
+        words = transcription.words || [];
+        
+        console.log(`[Whisper-Multi] Clip ${i}: Found ${segments.length} segments and ${words.length} words.`);
+        
+        if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
+      }
 
-    await processVideo({
-      inputPath:    video.originalPath,
-      outputPath,
-      startTime:    clip.startTime,
-      duration:     ai.suggestedDuration || clip.duration,
-      subtitlePath: video.options?.subtitles !== false ? subtitlePath : null,
-      aspectRatio:  video.options?.aspectRatio || '9:16',
-      onProgress:   async (pct) => {
-        const progDoc = await Video.findOne({ id: video.id });
-        const progClips = progDoc?.clips ? progDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
-        if (progClips[i]) {
-          progClips[i].progress = Math.min(pct, 90);
-          await Video.updateOne({ id: video.id }, { clips: progClips });
-        }
-      },
-    });
+      // Use safe fallback for AI analysis (prevents rate-limit crashes)
+      let analysis = {};
+      try {
+        analysis = await analyzeVideo({ originalName: clip.label, duration: clip.duration, transcript: transcriptionText });
+      } catch (aiErr) {
+        console.warn(`[Worker-Multi] Clip ${i}: analyzeVideo failed, using defaults:`, aiErr.message);
+        const topic = (clip.label || 'Clip').replace(/[_\-]/g, ' ');
+        analysis = {
+          title: `${topic} 🔥 #Shorts`,
+          description: `Check out this amazing ${topic} clip!`,
+          hashtags: ['#Shorts', '#Viral', '#YouTube'],
+          category: 'Entertainment',
+          viralScore: 7.0,
+        };
+      }
 
-    let thumbPath = null;
-    try { thumbPath = await extractThumbnail(outputPath, OUTPUTS_DIR, 3000); } catch {}
+      let creative = {};
+      try {
+        creative = await getAIContent({ originalName: clip.label, transcript: transcriptionText });
+      } catch (cErr) {
+        console.warn(`[Worker-Multi] Clip ${i}: getAIContent failed:`, cErr.message);
+      }
 
-    let s3Url = outputPath;
-    let s3Thumb = thumbPath;
+      const ai = { ...analysis, ...creative };
 
-    const latestDoc = await Video.findOne({ id: video.id });
-    const latestClips = latestDoc?.clips ? latestDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
-    if (latestClips[i]) {
-      latestClips[i] = {
-        ...latestClips[i], status: 'completed', progress: 100,
-        outputPath: s3Url || outputPath,
-        thumbnailPath: s3Thumb || thumbPath,
-        aiAnalysis: ai,
-      };
-      await Video.updateOne({ id: video.id }, { 
-        clips: latestClips,
-        progress: Math.round(((i + 1) / clips.length) * 100)
+      if (video.options?.subtitles !== false && segments.length > 0) {
+        writeTimedSubtitles(segments, subtitlePath, video.options?.captionStyle, words);
+      }
+
+      console.log(`[Worker-Multi] Clip ${i}: FFmpeg processing startTime=${clip.startTime}s duration=${clip.duration}s...`);
+      await processVideo({
+        inputPath:    video.originalPath,
+        outputPath,
+        startTime:    clip.startTime,
+        duration:     clip.duration,  // Always use the user-defined clip duration
+        subtitlePath: (video.options?.subtitles !== false && fs.existsSync(subtitlePath)) ? subtitlePath : null,
+        aspectRatio:  video.options?.aspectRatio || '9:16',
+        onProgress:   async (pct) => {
+          try {
+            const progDoc = await Video.findOne({ id: video.id });
+            const progClips = progDoc?.clips ? progDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
+            if (progClips[i]) {
+              progClips[i].progress = Math.min(pct, 90);
+              await Video.updateOne({ id: video.id }, { clips: progClips });
+            }
+          } catch {} // Don't crash on progress update failure
+        },
       });
+
+      let thumbPath = null;
+      try { thumbPath = await extractThumbnail(outputPath, OUTPUTS_DIR, 3000); } catch {}
+
+      // Mark clip as completed
+      const latestDoc = await Video.findOne({ id: video.id });
+      const latestClips = latestDoc?.clips ? latestDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
+      if (latestClips[i]) {
+        latestClips[i] = {
+          ...latestClips[i],
+          status: 'completed',
+          progress: 100,
+          outputPath: outputPath,
+          thumbnailPath: thumbPath,
+          aiAnalysis: ai,
+        };
+        await Video.updateOne({ id: video.id }, { 
+          clips: latestClips,
+          progress: Math.round(((i + 1) / clips.length) * 100)
+        });
+      }
+      console.log(`[Worker-Multi] ✅ Clip ${i + 1}/${clips.length} completed.`);
+
+    } catch (clipErr) {
+      // Per-clip error: mark THIS clip as failed but continue with the rest
+      console.error(`[Worker-Multi] ❌ Clip ${i + 1}/${clips.length} failed:`, clipErr.message);
+      try {
+        const errDoc = await Video.findOne({ id: video.id });
+        const errClips = errDoc?.clips ? errDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
+        if (errClips[i]) {
+          errClips[i].status = 'failed';
+          errClips[i].error = clipErr.message;
+          errClips[i].progress = 0;
+          await Video.updateOne({ id: video.id }, { clips: errClips });
+        }
+      } catch {} // Silently ignore DB update errors here
     }
   }
-  await Video.updateOne({ id: video.id }, { status: 'completed', progress: 100 });
+
+  // Check if at least one clip succeeded
+  const finalDoc = await Video.findOne({ id: video.id });
+  const finalClips = finalDoc?.clips ? finalDoc.clips.map(c => c.toObject ? c.toObject() : c) : [];
+  const anyCompleted = finalClips.some(c => c.status === 'completed');
+  const allFailed = finalClips.every(c => c.status === 'failed');
+
+  if (allFailed) {
+    await Video.updateOne({ id: video.id }, { status: 'failed', progress: 0, error: 'All clips failed to process' });
+  } else {
+    await Video.updateOne({ id: video.id }, { status: 'completed', progress: 100 });
+  }
+  console.log(`[Worker-Multi] Done. ${finalClips.filter(c => c.status === 'completed').length}/${finalClips.length} clips succeeded.`);
 }
 
 module.exports = { processVideoJob };

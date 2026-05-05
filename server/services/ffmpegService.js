@@ -179,6 +179,56 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 }
 
 /**
+ * Append a red "SUBSCRIBE" button overlay event to an existing ASS subtitle file.
+ * The button appears for ~3 seconds centred at the bottom of the frame,
+ * timed to the middle of the clip so it feels natural.
+ *
+ * @param {string} assPath        Path to the existing .ass file to patch
+ * @param {number} videoDuration  Total clip duration in seconds
+ */
+function appendSubscribeOverlay(assPath, videoDuration) {
+  const start = Math.max(1, Math.floor(videoDuration / 2) - 1); // midpoint - 1s
+  const end   = start + 3;                                        // show for 3s
+
+  const fmt = (sec) => {
+    const h  = Math.floor(sec / 3600).toString().padStart(1, '0');
+    const m  = Math.floor((sec % 3600) / 60).toString().padStart(2, '0');
+    const s2 = (sec % 60).toFixed(2).toString().padStart(5, '0');
+    return `${h}:${m}:${s2}`;
+  };
+
+  // ASS drawing: a rounded red pill shape centred at bottom (Alignment 2 = bottom-centre)
+  // DrawScale 1 unit ≈ 1px at PlayRes 1080. The box is ~620×84px centred.
+  const bgDraw =
+    '{\\bord0\\shad0\\1c&H0000FF&\\3c&H0000FF&\\4c&H80000000&' +
+    '\\1a&H00&\\3a&H00&\\4a&H55&\\p1}' +
+    'm -310 -42 b -310 -42 -330 -42 -330 -22 l -330 22 b -330 42 -310 42 -310 42 ' +
+    'l 310 42 b 330 42 330 22 330 22 l 330 -22 b 330 -42 310 -42 310 -42 z' +
+    '{\\p0}';
+
+  // Animated text: scale-bounce in then out
+  const textAnim =
+    '{\\b1\\1c&H00FFFFFF&\\shad0\\bord0' +
+    '\\fscx0\\fscy0\\t(0,120,\\fscx108\\fscy108)\\t(120,180,\\fscx100\\fscy100)}' +
+    '🔴 SUBSCRIBE';
+
+  const boxLine  = `Dialogue: 0,${fmt(start)},${fmt(end)},Subscribe,,0,0,0,,${bgDraw}`;
+  const textLine = `Dialogue: 1,${fmt(start)},${fmt(end)},Subscribe,,0,0,0,,${textAnim}`;
+
+  let content = fs.readFileSync(assPath, 'utf8');
+
+  // Inject a Subscribe style (bottom-centre, large font) after the Default style
+  const subscribeStyle =
+    'Style: Subscribe,Impact,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,540,540,160,1';
+  content = content.replace(/^(Style: Default.+)$/m, `$1\n${subscribeStyle}`);
+
+  // Append dialogue events
+  content = content.trimEnd() + `\n${boxLine}\n${textLine}\n`;
+  fs.writeFileSync(assPath, content, 'utf8');
+  console.log(`[Subscribe] 🔴 Overlay injected at ${fmt(start)}–${fmt(end)} (duration=${videoDuration}s)`);
+}
+
+/**
  * Extract a short audio clip as mono MP3 for Whisper transcription.
  */
 function extractAudioClip(inputPath, outputPath, startTime = 0, duration = 40) {
@@ -213,7 +263,7 @@ function extractAudioClip(inputPath, outputPath, startTime = 0, duration = 40) {
  * @param {Function} [opts.onProgress]
  * @returns {Promise<void>}
  */
-function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, subtitlePath, aspectRatio = '9:16', onProgress }) {
+function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, subtitlePath, aspectRatio = '9:16', onProgress, subscribeButton = true }) {
   return new Promise((resolve, reject) => {
     const clipDuration = Math.min(duration, 40);
 
@@ -242,6 +292,12 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
     }
 
     if (subtitlePath && fs.existsSync(subtitlePath)) {
+      // Inject subscribe button overlay into the ASS file before burning
+      if (subscribeButton) {
+        try { appendSubscribeOverlay(subtitlePath, clipDuration); } catch (e) {
+          console.warn('[Subscribe] Could not inject overlay:', e.message);
+        }
+      }
       console.log('📝 Burning subtitles from:', subtitlePath);
       const escaped = subtitlePath
         .replace(/\\/g, '/')
@@ -263,5 +319,5 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
   });
 }
 
-module.exports = { probeVideo, extractThumbnail, writeSubtitles, writeTimedSubtitles, extractAudioClip, processVideo };
+module.exports = { probeVideo, extractThumbnail, writeSubtitles, writeTimedSubtitles, extractAudioClip, processVideo, appendSubscribeOverlay };
 

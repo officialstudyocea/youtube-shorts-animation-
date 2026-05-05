@@ -29,6 +29,7 @@ const InMemoryVideo = {
       height: data.height || null,
       fps: data.fps || null,
       codec: data.codec || null,
+      mode: data.mode || 'single',      // ← single or multi
       options: data.options || {},
       aiAnalysis: data.aiAnalysis || {
         title: null, description: null, hashtags: [],
