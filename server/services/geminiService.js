@@ -10,7 +10,7 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 async function generateViralContent(data) {
   if (!genAI) throw new Error('GEMINI_API_KEY is missing');
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
   const prompt = `
     You are an expert YouTube Shorts content creator. 

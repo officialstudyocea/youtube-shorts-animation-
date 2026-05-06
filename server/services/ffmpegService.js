@@ -168,23 +168,36 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return `${h}:${m}:${s2}`;
   };
   let events = '';
+  let items = [];
 
-  // Use words if available for more dynamic "highlighting"
-  const items = (words && words.length > 0) ? words : segments;
+  // Robust check: If segments are missing but words are present, group words into 4-word chunks
+  if ((!segments || segments.length === 0) && words && words.length > 0) {
+    console.log('[Subtitles] Segments missing. Grouping words into chunks...');
+    for (let i = 0; i < words.length; i += 4) {
+      const chunk = words.slice(i, i + 4);
+      items.push({
+        start: chunk[0].start,
+        end: chunk[chunk.length - 1].end,
+        text: chunk.map(w => w.word).join(' ').trim()
+      });
+    }
+  } else {
+    items = (words && words.length > 0) ? words : segments;
+  }
   
   for (const item of items) {
     const text = (item.word || item.text || '').trim().replace(/\n/g, '\\N');
     if (!text) continue;
 
-    // Word-by-word mode usually needs a faster pop
     const isWord = !!item.word;
     const effect = isWord 
-      ? '{\\fscx125\\fscy125\\t(0,80,\\fscx100\\fscy100)}' 
-      : '{\\fscx115\\fscy115\\t(0,100,\\fscx100\\fscy100)}';
+      ? '{\\fscx110\\fscy110\\t(0,80,\\fscx100\\fscy100)}' 
+      : '{\\fscx105\\fscy105\\t(0,100,\\fscx100\\fscy100)}';
     
     events += `Dialogue: 0,${fmt(item.start)},${fmt(item.end)},Default,,0,0,0,,${effect}${text.toUpperCase()}\n`;
   }
   fs.writeFileSync(outputPath, header + events, 'utf8');
+  console.log(`[Subtitles] Written ${items.length} events to ${outputPath}`);
 }
 
 /**
@@ -348,7 +361,7 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
 
       // Video: Remove green -> Scale -> Delay
       filterGraph += `[1:v]colorkey=0x00FF00:0.3:0.1,scale=800:-1,setpts=PTS-STARTPTS+${animDelay}/TB[vckey];`;
-      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-350:shortest=1[vover];`;
+      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-120:shortest=1[vover];`;
       lastVideoLabel = 'vover';
 
       // Audio: Lower volume -> Delay -> Mix with main audio
