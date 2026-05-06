@@ -343,9 +343,10 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
 
     // 2. Add Animation (Chromakey + Overlay)
     if (hasAnimation) {
-      // Remove green (0x00FF00) and scale to fit width (approx 80% of frame width)
-      filterGraph += `[1:v]colorkey=0x00FF00:0.1:0.1,scale=800:-1[vckey];`;
-      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-200:shortest=1[vover];`;
+      // Remove green screen (0x00FF00) and scale to fit width (approx 800px wide)
+      // colorkey=color:similarity:blend
+      filterGraph += `[1:v]colorkey=0x00FF00:0.3:0.1,scale=800:-1[vckey];`;
+      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-150:shortest=1[vover];`;
       lastVideoLabel = 'vover';
     }
 
