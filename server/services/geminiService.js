@@ -49,18 +49,26 @@ async function generateViralContent(data) {
 async function transliterateToHinglish(segments) {
   if (!genAI || !segments || segments.length === 0) return segments;
   
-  // Use Flash for speed
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-  // Prepare a combined string to save tokens/requests
-  const textToTransliterate = segments.map((s, i) => `[${i}] ${s.text || s.word}`).join('\n');
+  // Prepare a combined string
+  const textToTransliterate = segments.map((s, i) => `ID:${i} | ${s.text || s.word}`).join('\n');
   
   const prompt = `
-    Transliterate the following Hindi Devanagari text into natural Romanized Hindi (Hinglish).
-    Guidelines:
-    - Use common Hinglish spellings (e.g., "kya kar raha hai bhai" instead of "kya kara raha hai bhaai").
-    - Keep the format EXACTLY as: [index] Transliterated Text
-    - Return ONLY the transliterated lines.
+    You are a professional Hinglish translator. 
+    Convert the following Hindi Devanagari text into Romanized Hindi (Hinglish).
+    
+    Example:
+    "क्या हाल है भाई" -> "kya haal hai bhai"
+    
+    Format:
+    ID:0 | transliterated_text
+    ID:1 | transliterated_text
+    
+    Rules:
+    - Keep the ID:N | prefix exactly.
+    - Use natural Hinglish spelling.
+    - Return ONLY the converted lines.
     
     Text:
     ${textToTransliterate}
@@ -71,15 +79,18 @@ async function transliterateToHinglish(segments) {
     const response = await result.response;
     const lines = response.text().split('\n');
     
-    const newSegments = [...segments];
+    const newSegments = JSON.parse(JSON.stringify(segments)); // Deep copy
     lines.forEach(line => {
-      const match = line.match(/\[(\d+)\]\s*(.*)/);
-      if (match) {
-        const index = parseInt(match[1]);
-        const transliterated = match[2].trim();
-        if (newSegments[index]) {
-          if (newSegments[index].word) newSegments[index].word = transliterated;
-          else if (newSegments[index].text) newSegments[index].text = transliterated;
+      const parts = line.split('|');
+      if (parts.length >= 2) {
+        const idMatch = parts[0].match(/ID:(\d+)/);
+        if (idMatch) {
+          const index = parseInt(idMatch[1]);
+          const transliterated = parts.slice(1).join('|').trim();
+          if (newSegments[index]) {
+            if ('word' in newSegments[index]) newSegments[index].word = transliterated;
+            if ('text' in newSegments[index]) newSegments[index].text = transliterated;
+          }
         }
       }
     });
