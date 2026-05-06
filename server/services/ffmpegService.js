@@ -45,7 +45,7 @@ console.log('🎬 [System] Version: 1.1.0 (Caption + Gemini Fix)');
 console.log('🎬 FFmpeg Path:', ffmpegPath);
 console.log('🔍 FFprobe Path:', ffprobePath);
 
-const fontName = process.platform === 'win32' ? 'Arial Black' : 'DejaVu Sans';
+const fontName = process.platform === 'win32' ? 'Arial Black' : 'sans-serif';
 console.log('🔡 Using Font:', fontName);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ function writeSubtitles(lines, outputPath, style = 'modern') {
 
   const header = `[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
+PlayResX: 607
 PlayResY: 1080
 WrapStyle: 1
 
@@ -151,7 +151,7 @@ function writeTimedSubtitles(segments, outputPath, style = 'modern', words = [])
   const s = styleMap[style] || styleMap.modern;
   const header = `[Script Info]
 ScriptType: v4.00+
-PlayResX: 1080
+PlayResX: 607
 PlayResY: 1080
 WrapStyle: 1
 
@@ -262,7 +262,7 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   let content = fs.readFileSync(assPath, 'utf8');
 
   // Inject/Update Subscribe style: Alignment 5 (Center), Margins 0
-  const fontName = process.platform === 'win32' ? 'Arial Black' : 'DejaVu Sans';
+  const fontName = process.platform === 'win32' ? 'Arial Black' : 'sans-serif';
   const subscribeStyle = `Style: Subscribe,${fontName},54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1`;
   
   if (content.includes('Style: Subscribe')) {
