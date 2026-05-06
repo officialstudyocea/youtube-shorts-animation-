@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["ffmpeg", "fontconfig", "ttf-dejavu", "pkg-config"]
+nixPkgs = ["ffmpeg", "fontconfig", "dejavu_fonts", "pkg-config"]
 
 [phases.build]
 cmds = ["npm install", "cd client && npm install && npm run build"]
