@@ -91,11 +91,16 @@ async function handleSingleClip(video) {
       await extractAudioClip(video.originalPath, wavPath, video.options?.trimStart || 0, 40);
       const transcription = await transcribeAudio(wavPath, video.options?.language);
       
-      transcriptionText = transcription.text;
+      transcriptionText = transcription.text || '';
       segments = transcription.segments || [];
       words = transcription.words || [];
       
       console.log(`[Whisper] Done. Found ${segments.length} segments and ${words.length} words.`);
+      if (transcriptionText) {
+        console.log(`[Whisper] Sample Text: "${transcriptionText.substring(0, 100)}..."`);
+      } else {
+        console.warn(`[Whisper] Warning: Transcription returned empty text for ${video.id}`);
+      }
       
       if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
     } catch (whisperErr) {
@@ -190,11 +195,16 @@ async function handleMultiClip(video) {
           await extractAudioClip(video.originalPath, wavPath, clip.startTime, clip.duration || 40);
           const transcription = await transcribeAudio(wavPath, video.options?.language);
           
-          transcriptionText = transcription.text;
+          transcriptionText = transcription.text || '';
           segments = transcription.segments || [];
           words = transcription.words || [];
           
           console.log(`[Whisper-Multi] Clip ${i}: Found ${segments.length} segments and ${words.length} words.`);
+          if (transcriptionText) {
+            console.log(`[Whisper-Multi] Clip ${i}: Sample Text: "${transcriptionText.substring(0, 100)}..."`);
+          } else {
+            console.warn(`[Whisper-Multi] Clip ${i}: Warning: Transcription returned empty text.`);
+          }
           
           if (fs.existsSync(wavPath)) fs.unlinkSync(wavPath);
         } catch (whisperErr) {

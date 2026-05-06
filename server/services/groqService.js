@@ -7,8 +7,6 @@ const Groq = require('groq-sdk');
 const path = require('path');
 
 function getGroqClient() {
-  // Collect all keys from GROQ_API_KEY_1, GROQ_API_KEY_2, etc.
-  // Also support the older GROQ_API_KEYS (comma separated) or single GROQ_API_KEY
   let keys = [];
 
   // 1. Check for GROQ_API_KEY_N pattern
@@ -18,6 +16,21 @@ function getGroqClient() {
       if (val) keys.push(val);
     }
   });
+
+  // 2. Check for single GROQ_API_KEY
+  if (process.env.GROQ_API_KEY) {
+    const val = process.env.GROQ_API_KEY.trim().split('#')[0].trim();
+    if (val) keys.push(val);
+  }
+
+  // 3. Check for comma-separated GROQ_API_KEYS
+  if (process.env.GROQ_API_KEYS) {
+    const split = process.env.GROQ_API_KEYS.split(',');
+    split.forEach(k => {
+      const val = k.trim().split('#')[0].trim();
+      if (val) keys.push(val);
+    });
+  }
 
   const uniqueKeys = [...new Set(keys)].filter(Boolean);
 

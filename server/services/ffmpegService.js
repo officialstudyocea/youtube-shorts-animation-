@@ -42,6 +42,9 @@ ffmpeg.setFfprobePath(ffprobePath);
 console.log('🎬 FFmpeg Path:', ffmpegPath);
 console.log('🔍 FFprobe Path:', ffprobePath);
 
+const fontName = process.platform === 'win32' ? 'Arial Black' : 'DejaVu Sans';
+console.log('🔡 Using Font:', fontName);
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 /**
@@ -105,7 +108,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
+Style: Default,${fontName},84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -151,7 +154,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial Black,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
+Style: Default,${fontName},84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -223,20 +226,22 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   let events = '';
 
   // 1. THE BUTTON BOX (Red -> Grey)
-  // Layer 0. Uses Style's Alignment 2 and MarginV 160. Path (0,0) is placed at insertion point.
-  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\fscx0\\fscy0\\t(0,250,\\fscx110\\fscy110)}${redBtnStyle}${pillPath}{\\p0}\n`;
-  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\fscx110\\fscy110}${greyBtnStyle}${pillPath}{\\p0}\n`;
+  // We use \an5 and \pos(540, 820) to perfectly center the pill and text together.
+  // We move it slightly higher than before (920 -> 820) to avoid overlapping captions.
+  const btnPos = '{\\an5\\pos(540,820)}';
+  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${btnPos}{\\fscx0\\fscy0\\t(0,250,\\fscx110\\fscy110)}${redBtnStyle}${pillPath}{\\p0}\n`;
+  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${btnPos}{\\fscx110\\fscy110}${greyBtnStyle}${pillPath}{\\p0}\n`;
 
   // 2. THE TEXT (SUBSCRIBE -> SUBSCRIBED)
-  // Layer 1. Use {\an5} to center text's middle on the style's insertion point.
-  const textPos = '{\\an5\\b1}';
+  // Layer 1. Use {\an5} to center text's middle on the same insertion point.
+  const textPos = '{\\an5\\b1\\pos(540,820)}';
   events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${textPos}{\\fscx0\\fscy0\\t(0,250,\\fscx110\\fscy110)\\1c&HFFFFFF&}SUBSCRIBE\n`;
   events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${textPos}{\\fscx110\\fscy110\\1c&HCCCCCC&}SUBSCRIBED\n`;
 
   // 3. THE CURSOR ANIMATION
-  // Moves from bottom-right (900, 1000) to button center (540, 920)
+  // Moves from bottom-right (900, 1000) to button center (540, 820)
   const cursorX1 = 900, cursorY1 = 1000;
-  const cursorX2 = 540, cursorY2 = 920;
+  const cursorX2 = 540, cursorY2 = 820;
   
   events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1100)}${cursorDraw}\n`;
   events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
@@ -245,8 +250,8 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   let content = fs.readFileSync(assPath, 'utf8');
 
   // Inject/Update Subscribe style: Alignment 2 (Bottom-Center), MarginV: 160 (closer to bottom)
-  // Changed font to Arial for better compatibility
-  const subscribeStyle = 'Style: Subscribe,Arial Black,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,10,10,160,1';
+  const fontName = process.platform === 'win32' ? 'Arial Black' : 'DejaVu Sans';
+  const subscribeStyle = `Style: Subscribe,${fontName},54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,10,10,160,1`;
   
   if (content.includes('Style: Subscribe')) {
     content = content.replace(/^Style: Subscribe.*$/m, subscribeStyle);
@@ -339,19 +344,18 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
       let escaped = subtitlePath.replace(/\\/g, '/');
       
       if (isWindows) {
-        // Windows needs special escaping for the colon and sometimes double escaping
-        // format: C\:/path/to/sub.ass
+        // Windows needs special escaping for the colon: C\:/path/to/sub.ass
         escaped = escaped.replace(':', '\\:');
       }
 
-      // On Windows, the path needs to be escaped for colons and then the whole filter string quoted.
-      // We use a more robust escaping pattern here.
-      const assFilter = isWindows 
-        ? `ass='${escaped}'` 
-        : `ass='${escaped}':fontsdir=/usr/share/fonts`;
+      // On Linux, we just need the path. Quoting is handled by the filter string.
+      // We also ensure fontconfig is used by NOT forcing a fontsdir if it might be wrong.
+      const assFilter = `ass='${escaped}'`;
       
       console.log(`[FFmpeg] Using ASS filter: ${assFilter}`);
       filters.push(assFilter);
+    } else {
+      console.log('[FFmpeg] Subtitles skipped: No subtitle path provided or file missing.');
     }
     cmd = cmd.videoFilters(filters);
 
