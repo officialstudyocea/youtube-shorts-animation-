@@ -211,14 +211,11 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   const t_end   = end;
 
   // --- STYLES ---
-  // Using explicit \pos and \an5 for perfect centering of both shape and text
-  const baseY = 800; // Adjusted Y to clear captions better
-  const btnCommon = `{\\an5\\pos(540,${baseY})\\bord3\\3c&H000000&\\shad0\\p1}`;
-  const redBtnStyle = `${btnCommon}{\\1c&H0000FF&}`; // Pure Red
-  const greyBtnStyle = `${btnCommon}{\\1c&H888888&}`;
-
+  // Using explicit \pos and \an5 at the very start of the tags for perfect centering
+  const baseY = 800; 
+  
   // Robust Pill Path: 560x100 centered at 0,0
-  const pillPath = 'm -250 -50 l 250 -50 b 280 -50 280 50 250 50 l -250 50 b -280 50 -280 -50 -250 -50';
+  const pillPath = 'm -250 -50 l 250 -50 b 300 -50 300 50 250 50 l -250 50 b -300 50 -300 -50 -250 -50';
 
   // Mouse Cursor Path (Clean Arrow)
   const cursorPath = 'm 0 0 l 0 25 l 7 20 l 12 30 l 16 28 l 11 18 l 22 17 z';
@@ -228,27 +225,29 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   let events = '';
 
   // 1. THE BUTTON BOX (Red -> Grey)
-  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)}${redBtnStyle}${pillPath}{\\p0}\n`;
-  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${greyBtnStyle}${pillPath}{\\p0}\n`;
+  // Tags MUST start with \an5\pos to ensure scaling (\fscx) happens around the center
+  const boxTags = `{\\an5\\pos(540,${baseY})\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\bord3\\3c&H000000&\\shad0\\p1}`;
+  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${boxTags}{\\1c&H0000FF&}${pillPath}{\\p0}\n`;
+  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an5\\pos(540,${baseY})\\fscx100\\fscy100\\bord3\\3c&H000000&\\shad0\\1c&H888888&\\p1}${pillPath}{\\p0}\n`;
 
   // 2. THE TEXT (SUBSCRIBE -> SUBSCRIBED)
-  const textCommon = `{\\an5\\pos(540,${baseY})\\b1}`;
-  events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${textCommon}{\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\1c&HFFFFFF&}SUBSCRIBE\n`;
-  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${textCommon}{\\1c&HCCCCCC&}SUBSCRIBED\n`;
+  const textTags = `{\\an5\\pos(540,${baseY})\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\b1\\1c&HFFFFFF&}`;
+  events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${textTags}SUBSCRIBE\n`;
+  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an5\\pos(540,${baseY})\\fscx100\\fscy100\\b1\\1c&HCCCCCC&}SUBSCRIBED\n`;
 
   // 3. THE CURSOR ANIMATION
   const cursorX1 = 900, cursorY1 = 1000;
   const cursorX2 = 540, cursorY2 = baseY;
   
-  events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1100)}${cursorDraw}\n`;
-  events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
-  events += `Dialogue: 2,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\move(${cursorX2},${cursorY2},${cursorX1},${cursorY1},0,600)\\alpha&HAA&}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\an5\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1100)}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\an5\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an5\\move(${cursorX2},${cursorY2},${cursorX1},${cursorY1},0,600)\\alpha&HAA&}${cursorDraw}\n`;
 
   let content = fs.readFileSync(assPath, 'utf8');
 
-  // Inject/Update Subscribe style: Alignment 2 (Bottom-Center), MarginV: 160 (closer to bottom)
+  // Inject/Update Subscribe style: Alignment 5 (Center), Margins 0
   const fontName = process.platform === 'win32' ? 'Arial Black' : 'DejaVu Sans';
-  const subscribeStyle = `Style: Subscribe,${fontName},54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,10,10,160,1`;
+  const subscribeStyle = `Style: Subscribe,${fontName},54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1`;
   
   if (content.includes('Style: Subscribe')) {
     content = content.replace(/^Style: Subscribe.*$/m, subscribeStyle);

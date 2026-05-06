@@ -1,6 +1,6 @@
 [build]
 builder = "nixpacks"
-pkgs = ["ffmpeg", "fontconfig", "ttf-dejavu"]
+pkgs = ["ffmpeg", "fontconfig", "ttf-dejavu", "pkg-config"]
 
 [deploy]
 startCommand = "cd server && node index.js"
