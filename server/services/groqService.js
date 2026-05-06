@@ -179,6 +179,11 @@ async function transcribeAudio(filePath, language = null) {
       if (language) {
         console.log(`[Whisper] Forcing language: ${language}`);
         options.language = language;
+        
+        // Special handle for Hinglish (Romanized Hindi)
+        if (language === 'hi') {
+          options.prompt = "Transcribe the audio in Romanized Hindi (Hinglish), e.g., 'kya kar raha hai bhai', 'kaise ho', 'mast hai'. Avoid Devanagari script.";
+        }
       }
 
       const transcription = await client.audio.transcriptions.create(options);
