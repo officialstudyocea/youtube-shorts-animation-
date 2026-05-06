@@ -342,53 +342,60 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
     }
 
     // ── Build Filter Graph ──────────────────────────────────────────────────
-    // [0:v] is main video, [1:v] is animation (if present)
-    let filterGraph = '';
+    const filters = [];
+    let lastV = '0:v';
+    let lastA = '0:a';
 
     // 1. Crop main video
     if (aspectRatio === '1:1') {
-      filterGraph += "[0:v]crop='trunc(min(iw,ih)/2)*2':'trunc(min(iw,ih)/2)*2'[vbase];";
+      filters.push(`[${lastV}]crop='trunc(min(iw,ih)/2)*2':'trunc(min(iw,ih)/2)*2'[vbase]`);
     } else {
-      filterGraph += "[0:v]crop='trunc((ih*9/16)/2)*2':'trunc(ih/2)*2'[vbase];";
+      filters.push(`[${lastV}]crop='trunc((ih*9/16)/2)*2':'trunc(ih/2)*2'[vbase]`);
     }
-
-    let lastVideoLabel = 'vbase';
+    lastV = 'vbase';
 
     // 2. Add Animation (Chromakey + Overlay + Audio Mix)
     if (hasAnimation) {
-      const animDelay = Math.max(0.5, (clipDuration / 2) - 2); // Start near the middle
+      const animDelay = Math.max(0.5, (clipDuration / 2) - 2); 
       const animDelayMs = Math.round(animDelay * 1000);
 
       // Video: Remove green -> Scale -> Delay
-      filterGraph += `[1:v]colorkey=0x00FF00:0.3:0.1,scale=800:-1,setpts=PTS-STARTPTS+${animDelay}/TB[vckey];`;
-      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-120:shortest=1[vover];`;
-      lastVideoLabel = 'vover';
+      filters.push(`[1:v]colorkey=0x00FF00:0.3:0.1,scale=800:-1,setpts=PTS-STARTPTS+${animDelay}/TB[vckey]`);
+      filters.push(`[${lastV}][vckey]overlay=x=(W-w)/2:y=H-h-350:shortest=1[vover]`);
+      lastV = 'vover';
 
       // Audio: Lower volume -> Delay -> Mix with main audio
-      filterGraph += `[1:a]volume=0.15,adelay=${animDelayMs}|${animDelayMs}[adelayed];`;
-      filterGraph += `[0:a][adelayed]amix=inputs=2:duration=first:dropout_transition=2[afinal];`;
+      filters.push(`[1:a]volume=0.15,adelay=${animDelayMs}|${animDelayMs}[adelayed]`);
+      filters.push(`[0:a][adelayed]amix=inputs=2:duration=first:dropout_transition=2[afinal]`);
+      lastA = 'afinal';
     }
 
     // 3. Burn Subtitles
     if (hasSubtitles) {
+      console.log(`[FFmpeg] Burning subtitles: ${subtitlePath}`);
       const isWindows = process.platform === 'win32';
       let escaped = subtitlePath.replace(/\\/g, '/');
       if (isWindows) {
         escaped = escaped.replace(':', '\\:');
       } else {
+        // Robust Linux escaping for libass
         escaped = escaped.replace(/'/g, "'\\\\''");
       }
-      filterGraph += `[${lastVideoLabel}]ass='${escaped}'[vfinal]`;
-      lastVideoLabel = 'vfinal';
-    } else {
-      // If no subtitles, the last output is our final output
-      filterGraph = filterGraph.replace(/\[([^\]]+)\];$/, '[$1]'); // Remove trailing semicolon if any
-      // If the last label is already tagged, we're good.
-      // But if lastVideoLabel didn't get renamed to vfinal, we need to map it.
+      filters.push(`[${lastV}]ass='${escaped}'[vfinal]`);
+      lastV = 'vfinal';
     }
 
-    const outputLabels = [lastVideoLabel];
-    if (hasAnimation) outputLabels.push('afinal');
+    // Ensure we always have an audio label if it didn't go through amix
+    if (lastA === '0:a') {
+      filters.push(`[0:a]acopy[afinal]`);
+      lastA = 'afinal';
+    }
+
+    const filterGraph = filters.join(';');
+    const outputLabels = [lastV, lastA];
+
+    console.log(`[FFmpeg] Filter Graph: ${filterGraph}`);
+    console.log(`[FFmpeg] Output Labels: ${outputLabels}`);
 
     cmd
       .complexFilter(filterGraph, outputLabels)
