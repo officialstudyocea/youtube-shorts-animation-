@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["ffmpeg", "fontconfig", "ttf-dejavu", "pkg-config"]
+
+[phases.build]
+cmds = ["npm install", "cd client && npm install && npm run build"]
+
+[start]
+cmd = "cd server && node index.js"

@@ -1,8 +1,7 @@
 [build]
 builder = "nixpacks"
-pkgs = ["ffmpeg", "fontconfig", "ttf-dejavu", "pkg-config"]
 
 [deploy]
-startCommand = "fc-cache -f -v && cd server && node index.js"
+startCommand = "cd server && node index.js"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
