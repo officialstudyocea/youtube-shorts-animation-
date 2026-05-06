@@ -45,7 +45,7 @@ console.log('🎬 [System] Version: 1.2.0 (Stability + Gemini Fix)');
 console.log('🎬 FFmpeg Path:', ffmpegPath);
 console.log('🔍 FFprobe Path:', ffprobePath);
 
-const fontName = process.platform === 'win32' ? 'Arial Black' : 'sans-serif';
+const fontName = process.platform === 'win32' ? 'Arial Black' : 'DejaVu Sans';
 console.log('🔡 Using Font:', fontName);
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -228,6 +228,8 @@ function appendSubscribeOverlay(assPath, videoDuration) {
 
   // --- STYLES ---
   // Using explicit \pos and \an5 at the very start of the tags for perfect centering
+  // NEW: Center is 303 (since user changed PlayResX to 607)
+  const baseX = 303;
   const baseY = 800; 
   
   // Robust Pill Path: 560x100 centered at 0,0
@@ -242,18 +244,18 @@ function appendSubscribeOverlay(assPath, videoDuration) {
 
   // 1. THE BUTTON BOX (Red -> Grey)
   // Tags MUST start with \an5\pos to ensure scaling (\fscx) happens around the center
-  const boxTags = `{\\an5\\pos(540,${baseY})\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\bord3\\3c&H000000&\\shad0\\p1}`;
+  const boxTags = `{\\an5\\pos(${baseX},${baseY})\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\bord3\\3c&H000000&\\shad0\\p1}`;
   events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${boxTags}{\\1c&H0000FF&}${pillPath}{\\p0}\n`;
-  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an5\\pos(540,${baseY})\\fscx100\\fscy100\\bord3\\3c&H000000&\\shad0\\1c&H888888&\\p1}${pillPath}{\\p0}\n`;
+  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an5\\pos(${baseX},${baseY})\\fscx100\\fscy100\\bord3\\3c&H000000&\\shad0\\1c&H888888&\\p1}${pillPath}{\\p0}\n`;
 
   // 2. THE TEXT (SUBSCRIBE -> SUBSCRIBED)
-  const textTags = `{\\an5\\pos(540,${baseY})\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\b1\\1c&HFFFFFF&}`;
+  const textTags = `{\\an5\\pos(${baseX},${baseY})\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\b1\\1c&HFFFFFF&}`;
   events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${textTags}SUBSCRIBE\n`;
-  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an5\\pos(540,${baseY})\\fscx100\\fscy100\\b1\\1c&HCCCCCC&}SUBSCRIBED\n`;
+  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an5\\pos(${baseX},${baseY})\\fscx100\\fscy100\\b1\\1c&HCCCCCC&}SUBSCRIBED\n`;
 
   // 3. THE CURSOR ANIMATION
-  const cursorX1 = 900, cursorY1 = 1000;
-  const cursorX2 = 540, cursorY2 = baseY;
+  const cursorX1 = 500, cursorY1 = 1000;
+  const cursorX2 = baseX, cursorY2 = baseY;
   
   events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\an5\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1100)}${cursorDraw}\n`;
   events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\an5\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
@@ -262,7 +264,7 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   let content = fs.readFileSync(assPath, 'utf8');
 
   // Inject/Update Subscribe style: Alignment 5 (Center), Margins 0
-  const fontName = process.platform === 'win32' ? 'Arial Black' : 'sans-serif';
+  const fontName = process.platform === 'win32' ? 'Arial Black' : 'DejaVu Sans';
   const subscribeStyle = `Style: Subscribe,${fontName},54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,5,0,0,0,1`;
   
   if (content.includes('Style: Subscribe')) {
