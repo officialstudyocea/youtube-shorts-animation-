@@ -105,7 +105,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
+Style: Default,Arial Black,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -121,7 +121,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       const sec = (s % 60).toFixed(2).toString().padStart(5, '0');
       return `${h}:${m}:${sec}`;
     };
-    events += `Dialogue: 0,${fmt(start)},${fmt(end)},Default,,0,0,0,,${line.trim()}\n`;
+    events += `Dialogue: 0,${fmt(start)},${fmt(end)},Default,,0,0,0,,${line.trim().toUpperCase()}\n`;
   });
 
   fs.writeFileSync(outputPath, header + events, 'utf8');
@@ -151,7 +151,7 @@ WrapStyle: 1
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
+Style: Default,Arial Black,84,${s.colour},&H000000FF,${s.outline},${s.shadow},-1,0,0,0,100,100,0,0,1,4,2,2,60,60,100,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -177,7 +177,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
       ? '{\\fscx125\\fscy125\\t(0,80,\\fscx100\\fscy100)}' 
       : '{\\fscx115\\fscy115\\t(0,100,\\fscx100\\fscy100)}';
     
-    events += `Dialogue: 0,${fmt(item.start)},${fmt(item.end)},Default,,0,0,0,,${effect}${text}\n`;
+    events += `Dialogue: 0,${fmt(item.start)},${fmt(item.end)},Default,,0,0,0,,${effect}${text.toUpperCase()}\n`;
   }
   fs.writeFileSync(outputPath, header + events, 'utf8');
 }
@@ -208,56 +208,48 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   const t_end   = end;
 
   // --- STYLES ---
-  // Red Button Style
-  const redBtnStyle = '{\\bord2\\3c&H000000&\\shad0\\1c&H2222FF&\\p1}'; // BGR: FF2222 is red
-  // Grey Button Style
-  const greyBtnStyle = '{\\bord2\\3c&H000000&\\shad0\\1c&H888888&\\p1}';
+  // Alignment 2 = Bottom Center (anchor for the whole group)
+  const redBtnStyle = '{\\bord3\\3c&H000000&\\shad0\\1c&H2222FF&\\p1}'; // BGR: Red
+  const greyBtnStyle = '{\\bord3\\3c&H000000&\\shad0\\1c&H888888&\\p1}';
 
-  // Rounded Rect Path (600x100)
-  const pillPath = 'm -300 -50 b -320 -50 -320 50 -300 50 l 300 50 b 320 50 320 -50 300 -50 z';
+  // Rounded Rect Path (Bottom pill, 560x90)
+  const pillPath = 'm -280 -45 b -300 -45 -300 45 -280 45 l 280 45 b 300 45 300 -45 280 -45 z';
 
   // Mouse Cursor Path (Clean Arrow)
-  const cursorPath = 'm 0 0 l 0 22 l 6 17 l 11 27 l 15 25 l 10 15 l 20 15 z';
+  const cursorPath = 'm 0 0 l 0 25 l 7 20 l 12 30 l 16 28 l 11 18 l 22 17 z';
   const cursorDraw = `{\\bord1\\3c&H000000&\\1c&HFFFFFF&\\p1}${cursorPath}{\\p0}`;
 
   // --- EVENTS ---
   let events = '';
 
   // 1. THE BUTTON BOX (Red -> Grey)
-  // Red state box
-  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\fscx0\\fscy0\\t(0,200,\\fscx100\\fscy100)}${redBtnStyle}${pillPath}{\\p0}\n`;
-  // Grey state box
-  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${greyBtnStyle}${pillPath}{\\p0}\n`;
+  // Layer 0. Uses Style's Alignment 2 and MarginV 160. Path (0,0) is placed at insertion point.
+  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\fscx0\\fscy0\\t(0,250,\\fscx110\\fscy110)}${redBtnStyle}${pillPath}{\\p0}\n`;
+  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\fscx110\\fscy110}${greyBtnStyle}${pillPath}{\\p0}\n`;
 
   // 2. THE TEXT (SUBSCRIBE -> SUBSCRIBED)
-  // "SUBSCRIBE" (Red state)
-  events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\b1\\fscx0\\fscy0\\t(50,250,\\fscx100\\fscy100)}SUBSCRIBE\n`;
-  // "SUBSCRIBED" (Grey state)
-  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\b1\\1c&HCCCCCC&}SUBSCRIBED ✓\n`;
+  // Layer 1. Use {\an5} to center text's middle on the style's insertion point.
+  const textPos = '{\\an5\\b1}';
+  events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${textPos}{\\fscx0\\fscy0\\t(0,250,\\fscx110\\fscy110)\\1c&HFFFFFF&}SUBSCRIBE\n`;
+  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${textPos}{\\fscx110\\fscy110\\1c&HCCCCCC&}SUBSCRIBED\n`;
 
   // 3. THE CURSOR ANIMATION
-  // Moves from (700, 800) to center (540, 880 relative to PlayRes)
-  // In ASS, we use \move(x1, y1, x2, y2, t1, t2)
-  // Layer 2 to be on top
-  const cursorX1 = 300, cursorY1 = 100; // start offset
-  const cursorX2 = 20,  cursorY2 = 20;  // click position offset from center
+  // Moves from bottom-right (900, 1000) to button center (540, 920)
+  const cursorX1 = 900, cursorY1 = 1000;
+  const cursorX2 = 540, cursorY2 = 920;
   
-  // Cursor phases:
-  // Move in: t_start -> t_click
-  // Click (scale down): t_click -> t_click+100
-  // Move out: t_done -> t_done+500
-  
-  events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\an1\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1000)}${cursorDraw}\n`;
-  events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\an1\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
-  events += `Dialogue: 2,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\an1\\move(${cursorX2},${cursorY2},${cursorX1},${cursorY1},0,500)\\alpha&HAA&}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1100)}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
+  events += `Dialogue: 2,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,{\\move(${cursorX2},${cursorY2},${cursorX1},${cursorY1},0,600)\\alpha&HAA&}${cursorDraw}\n`;
 
   let content = fs.readFileSync(assPath, 'utf8');
 
-  // Inject/Update Subscribe style
-  const subscribeStyle = 'Style: Subscribe,Impact,50,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,540,540,150,1';
+  // Inject/Update Subscribe style: Alignment 2 (Bottom-Center), MarginV: 160 (closer to bottom)
+  // Changed font to Arial for better compatibility
+  const subscribeStyle = 'Style: Subscribe,Arial Black,54,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,0,2,10,10,160,1';
   
   if (content.includes('Style: Subscribe')) {
-    content = content.replace(/^Style: Subscribe.+$/m, subscribeStyle);
+    content = content.replace(/^Style: Subscribe.*$/m, subscribeStyle);
   } else {
     content = content.replace(/^(Style: Default.+)$/m, `$1\n${subscribeStyle}`);
   }
@@ -265,7 +257,7 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   // Append dialogue events
   content = content.trimEnd() + '\n' + events;
   fs.writeFileSync(assPath, content, 'utf8');
-  console.log(`[Subscribe] 🖱️ Cursor click animation injected at ${fmt(start)}`);
+  console.log(`[Subscribe] 🖱️ Fixed bottom-center overlay with synchronized animation at ${fmt(start)}`);
 }
 
 /**
