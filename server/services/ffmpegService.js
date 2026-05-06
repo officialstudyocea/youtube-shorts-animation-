@@ -211,12 +211,14 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   const t_end   = end;
 
   // --- STYLES ---
-  // Alignment 2 = Bottom Center (anchor for the whole group)
-  const redBtnStyle = '{\\bord3\\3c&H000000&\\shad0\\1c&H2222FF&\\p1}'; // BGR: Red
-  const greyBtnStyle = '{\\bord3\\3c&H000000&\\shad0\\1c&H888888&\\p1}';
+  // Using explicit \pos and \an5 for perfect centering of both shape and text
+  const baseY = 800; // Adjusted Y to clear captions better
+  const btnCommon = `{\\an5\\pos(540,${baseY})\\bord3\\3c&H000000&\\shad0\\p1}`;
+  const redBtnStyle = `${btnCommon}{\\1c&H0000FF&}`; // Pure Red
+  const greyBtnStyle = `${btnCommon}{\\1c&H888888&}`;
 
-  // Rounded Rect Path (Bottom pill, 560x90)
-  const pillPath = 'm -280 -45 b -300 -45 -300 45 -280 45 l 280 45 b 300 45 300 -45 280 -45 z';
+  // Robust Pill Path: 560x100 centered at 0,0
+  const pillPath = 'm -250 -50 l 250 -50 b 280 -50 280 50 250 50 l -250 50 b -280 50 -280 -50 -250 -50';
 
   // Mouse Cursor Path (Clean Arrow)
   const cursorPath = 'm 0 0 l 0 25 l 7 20 l 12 30 l 16 28 l 11 18 l 22 17 z';
@@ -226,22 +228,17 @@ function appendSubscribeOverlay(assPath, videoDuration) {
   let events = '';
 
   // 1. THE BUTTON BOX (Red -> Grey)
-  // We use \an5 and \pos(540, 820) to perfectly center the pill and text together.
-  // We move it slightly higher than before (920 -> 820) to avoid overlapping captions.
-  const btnPos = '{\\an5\\pos(540,820)}';
-  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${btnPos}{\\fscx0\\fscy0\\t(0,250,\\fscx110\\fscy110)}${redBtnStyle}${pillPath}{\\p0}\n`;
-  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${btnPos}{\\fscx110\\fscy110}${greyBtnStyle}${pillPath}{\\p0}\n`;
+  events += `Dialogue: 0,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,{\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)}${redBtnStyle}${pillPath}{\\p0}\n`;
+  events += `Dialogue: 0,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${greyBtnStyle}${pillPath}{\\p0}\n`;
 
   // 2. THE TEXT (SUBSCRIBE -> SUBSCRIBED)
-  // Layer 1. Use {\an5} to center text's middle on the same insertion point.
-  const textPos = '{\\an5\\b1\\pos(540,820)}';
-  events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${textPos}{\\fscx0\\fscy0\\t(0,250,\\fscx110\\fscy110)\\1c&HFFFFFF&}SUBSCRIBE\n`;
-  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${textPos}{\\fscx110\\fscy110\\1c&HCCCCCC&}SUBSCRIBED\n`;
+  const textCommon = `{\\an5\\pos(540,${baseY})\\b1}`;
+  events += `Dialogue: 1,${fmt(t_start)},${fmt(t_done)},Subscribe,,0,0,0,,${textCommon}{\\fscx0\\fscy0\\t(0,250,\\fscx100\\fscy100)\\1c&HFFFFFF&}SUBSCRIBE\n`;
+  events += `Dialogue: 1,${fmt(t_done)},${fmt(t_end)},Subscribe,,0,0,0,,${textCommon}{\\1c&HCCCCCC&}SUBSCRIBED\n`;
 
   // 3. THE CURSOR ANIMATION
-  // Moves from bottom-right (900, 1000) to button center (540, 820)
   const cursorX1 = 900, cursorY1 = 1000;
-  const cursorX2 = 540, cursorY2 = 820;
+  const cursorX2 = 540, cursorY2 = baseY;
   
   events += `Dialogue: 2,${fmt(t_start)},${fmt(t_click)},Subscribe,,0,0,0,,{\\move(${cursorX1},${cursorY1},${cursorX2},${cursorY2},0,1100)}${cursorDraw}\n`;
   events += `Dialogue: 2,${fmt(t_click)},${fmt(t_done)},Subscribe,,0,0,0,,{\\pos(${cursorX2},${cursorY2})\\fscx80\\fscy80}${cursorDraw}\n`;
