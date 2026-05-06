@@ -11,7 +11,7 @@ const {
   extractThumbnail, writeSubtitles, writeTimedSubtitles, extractAudioClip, processVideo 
 } = require('./services/ffmpegService');
 const { analyzeVideo, transcribeAudio } = require('./services/groqService');
-const { generateViralContent } = require('./services/geminiService');
+const { generateViralContent, transliterateToHinglish } = require('./services/geminiService');
 const { generateBackupContent } = require('./services/openRouterService');
 
 const OUTPUTS_DIR = path.join(__dirname, 'outputs');
@@ -98,6 +98,16 @@ async function handleSingleClip(video) {
       console.log(`[Whisper] Done. Found ${segments.length} segments and ${words.length} words.`);
       if (transcriptionText) {
         console.log(`[Whisper] Sample Text: "${transcriptionText.substring(0, 100)}..."`);
+        
+        // --- Hinglish Transliteration ---
+        if (video.options?.language === 'hi') {
+          console.log('[AI] Transliterating Hindi to Hinglish...');
+          if (words && words.length > 0) {
+            words = await transliterateToHinglish(words);
+          } else if (segments && segments.length > 0) {
+            segments = await transliterateToHinglish(segments);
+          }
+        }
       } else {
         console.warn(`[Whisper] Warning: Transcription returned empty text for ${video.id}`);
       }
@@ -211,6 +221,16 @@ async function handleMultiClip(video) {
           console.log(`[Whisper-Multi] Clip ${i}: Found ${segments.length} segments and ${words.length} words.`);
           if (transcriptionText) {
             console.log(`[Whisper-Multi] Clip ${i}: Sample Text: "${transcriptionText.substring(0, 100)}..."`);
+            
+            // --- Hinglish Transliteration ---
+            if (video.options?.language === 'hi') {
+              console.log(`[AI-Multi] Clip ${i}: Transliterating Hindi to Hinglish...`);
+              if (words && words.length > 0) {
+                words = await transliterateToHinglish(words);
+              } else if (segments && segments.length > 0) {
+                segments = await transliterateToHinglish(segments);
+              }
+            }
           } else {
             console.warn(`[Whisper-Multi] Clip ${i}: Warning: Transcription returned empty text.`);
           }
