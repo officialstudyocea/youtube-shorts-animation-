@@ -325,7 +325,7 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
 
     if (hasAnimation) {
       console.log('🎬 Adding Subscribe Animation overlay:', SUBSCRIBE_ANIMATION);
-      cmd.input(SUBSCRIBE_ANIMATION).inputOptions(['-stream_loop -1']); // Loop animation if shorter than video
+      cmd.input(SUBSCRIBE_ANIMATION); // Removed looping, play only once
     }
 
     // ── Build Filter Graph ──────────────────────────────────────────────────
@@ -341,13 +341,19 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
 
     let lastVideoLabel = 'vbase';
 
-    // 2. Add Animation (Chromakey + Overlay)
+    // 2. Add Animation (Chromakey + Overlay + Audio Mix)
     if (hasAnimation) {
-      // Remove green screen (0x00FF00) and scale to fit width (approx 800px wide)
-      // colorkey=color:similarity:blend
-      filterGraph += `[1:v]colorkey=0x00FF00:0.3:0.1,scale=800:-1[vckey];`;
-      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-150:shortest=1[vover];`;
+      const animDelay = Math.max(0.5, (clipDuration / 2) - 2); // Start near the middle
+      const animDelayMs = Math.round(animDelay * 1000);
+
+      // Video: Remove green -> Scale -> Delay
+      filterGraph += `[1:v]colorkey=0x00FF00:0.3:0.1,scale=800:-1,setpts=PTS-STARTPTS+${animDelay}/TB[vckey];`;
+      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-350:shortest=1[vover];`;
       lastVideoLabel = 'vover';
+
+      // Audio: Lower volume -> Delay -> Mix with main audio
+      filterGraph += `[1:a]volume=0.15,adelay=${animDelayMs}|${animDelayMs}[adelayed];`;
+      filterGraph += `[0:a][adelayed]amix=inputs=2:duration=first:dropout_transition=2[afinal];`;
     }
 
     // 3. Burn Subtitles
@@ -368,8 +374,11 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
       // But if lastVideoLabel didn't get renamed to vfinal, we need to map it.
     }
 
+    const outputLabels = [lastVideoLabel];
+    if (hasAnimation) outputLabels.push('afinal');
+
     cmd
-      .complexFilter(filterGraph, lastVideoLabel)
+      .complexFilter(filterGraph, outputLabels)
       .output(outputPath)
       .on('progress', (info) => {
         if (onProgress && info.percent) onProgress(Math.round(info.percent));
