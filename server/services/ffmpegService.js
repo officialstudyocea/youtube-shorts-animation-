@@ -41,6 +41,7 @@ ffprobePath = process.env.FFPROBE_PATH || ffprobePath;
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
+console.log('🎬 [System] Version: 1.1.0 (Caption + Gemini Fix)');
 console.log('🎬 FFmpeg Path:', ffmpegPath);
 console.log('🔍 FFprobe Path:', ffprobePath);
 
@@ -361,7 +362,7 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
 
       // Video: Remove green -> Scale -> Delay
       filters.push(`[1:v]colorkey=0x00FF00:0.3:0.1,scale=800:-1,setpts=PTS-STARTPTS+${animDelay}/TB[vckey]`);
-      filters.push(`[${lastV}][vckey]overlay=x=(W-w)/2:y=H-h-350:shortest=1[vover]`);
+      filters.push(`[${lastV}][vckey]overlay=x=(W-w)/2:y=H-h-120:eof_action=pass[vover]`);
       lastV = 'vover';
 
       // Audio: Lower volume -> Delay -> Mix with main audio
