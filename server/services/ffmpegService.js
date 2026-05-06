@@ -338,21 +338,25 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
       console.log('📝 Burning subtitles from:', subtitlePath);
       
       const isWindows = process.platform === 'win32';
+      console.log(`[FFmpeg] Platform: ${process.platform}, isWindows: ${isWindows}`);
+      console.log(`[FFmpeg] Target Font: ${fontName}`);
+
       let escaped = subtitlePath.replace(/\\/g, '/');
       
       if (isWindows) {
         // Windows needs special escaping for the colon: C\:/path/to/sub.ass
         escaped = escaped.replace(':', '\\:');
+      } else {
+        // Linux: Ensure absolute paths are handled correctly. 
+        // We use single quotes and escape any single quotes inside the path.
+        escaped = escaped.replace(/'/g, "'\\\\''");
       }
 
-      // On Linux, we just need the path. Quoting is handled by the filter string.
-      // We also ensure fontconfig is used by NOT forcing a fontsdir if it might be wrong.
       const assFilter = `ass='${escaped}'`;
-      
-      console.log(`[FFmpeg] Using ASS filter: ${assFilter}`);
+      console.log(`[FFmpeg] Final ASS filter: ${assFilter}`);
       filters.push(assFilter);
     } else {
-      console.log('[FFmpeg] Subtitles skipped: No subtitle path provided or file missing.');
+      console.warn(`[FFmpeg] Subtitles skipped: Path not found or file missing at ${subtitlePath}`);
     }
     cmd = cmd.videoFilters(filters);
 

@@ -163,6 +163,11 @@ async function transcribeAudio(filePath, language = null) {
 
   while (attempts < maxAttempts) {
     try {
+      console.log(`[Whisper] Starting transcription for: ${path.basename(filePath)} (Attempt ${attempts + 1})`);
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`Audio file not found: ${filePath}`);
+      }
+
       const client = getGroqClient();
       const options = {
         file: fs.createReadStream(filePath),
@@ -171,7 +176,10 @@ async function transcribeAudio(filePath, language = null) {
         timestamp_granularities: ['word'],
       };
       
-      if (language) options.language = language;
+      if (language) {
+        console.log(`[Whisper] Forcing language: ${language}`);
+        options.language = language;
+      }
 
       const transcription = await client.audio.transcriptions.create(options);
       
@@ -179,8 +187,12 @@ async function transcribeAudio(filePath, language = null) {
       const segmentCount = transcription.segments?.length || 0;
       const wordCount = transcription.words?.length || 0;
 
-      console.log(`[Whisper] API Response: "${textSnippet}..."`);
+      console.log(`[Whisper] API Success. Text: "${textSnippet}..."`);
       console.log(`[Whisper] Stats: ${segmentCount} segments, ${wordCount} words.`);
+
+      if (segmentCount === 0) {
+        console.warn('[Whisper] No segments returned. Captions will be empty.');
+      }
 
       return {
         text: transcription.text || '',
@@ -197,12 +209,12 @@ async function transcribeAudio(filePath, language = null) {
       };
     } catch (err) {
       attempts++;
+      console.error(`[Whisper] Error on attempt ${attempts}:`, err.message);
       // Retry on 401 (Invalid Key) or 429 (Rate Limit)
       if ((err.status === 401 || err.status === 429) && attempts < maxAttempts) {
-        console.warn(`[Whisper] Key failed (${err.status}). Retrying with another key... (Attempt ${attempts}/${maxAttempts})`);
+        console.warn(`[Whisper] Retrying with another key...`);
         continue;
       }
-      console.error('[Whisper] Transcription failed:', err);
       throw err;
     }
   }

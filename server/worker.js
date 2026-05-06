@@ -115,10 +115,19 @@ async function handleSingleClip(video) {
   const ai = { ...analysis, ...creative };
 
   if (video.options?.subtitles !== false) {
-    const hasData = (segments && segments.length > 0) || (words && words.length > 0);
-    if (hasData) {
+    const hasSegments = segments && segments.length > 0;
+    const hasWords = words && words.length > 0;
+    
+    if (hasSegments || hasWords) {
       console.log(`[Worker] Writing ${segments.length} segments / ${words.length} words to ${subtitlePath}`);
       writeTimedSubtitles(segments, subtitlePath, video.options?.captionStyle, words);
+      
+      if (fs.existsSync(subtitlePath)) {
+        const stats = fs.statSync(subtitlePath);
+        console.log(`[Worker] Subtitle file created successfully. Size: ${stats.size} bytes`);
+      } else {
+        console.error(`[Worker] Failed to create subtitle file at ${subtitlePath}`);
+      }
     } else {
       console.warn(`[Worker] No transcription data found for ${video.id}, skipping subtitle file.`);
     }
