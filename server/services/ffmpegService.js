@@ -16,6 +16,8 @@ const fs     = require('fs');
 let ffmpegPath = 'ffmpeg';
 let ffprobePath = 'ffprobe';
 
+const SUBSCRIBE_ANIMATION = path.resolve(__dirname, '../../subscribe-animation.mp4');
+
 // 1. Check for system FFmpeg (Railway/Linux)
 try {
   const { execSync } = require('child_process');
@@ -318,54 +320,64 @@ function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, sub
       .audioCodec('aac')
       .audioBitrate('128k');
 
-    // Crop + Burn ASS subtitles
-    const filters = [];
-    if (aspectRatio === '1:1') {
-      filters.push("crop='trunc(min(iw,ih)/2)*2':'trunc(min(iw,ih)/2)*2'");
-    } else {
-      // 9:16 vertical crop
-      filters.push("crop='trunc((ih*9/16)/2)*2':'trunc(ih/2)*2'");
+    const hasSubtitles = subtitlePath && fs.existsSync(subtitlePath);
+    const hasAnimation = subscribeButton && fs.existsSync(SUBSCRIBE_ANIMATION);
+
+    if (hasAnimation) {
+      console.log('🎬 Adding Subscribe Animation overlay:', SUBSCRIBE_ANIMATION);
+      cmd.input(SUBSCRIBE_ANIMATION).inputOptions(['-stream_loop -1']); // Loop animation if shorter than video
     }
 
-    if (subtitlePath && fs.existsSync(subtitlePath)) {
-      // Inject subscribe button overlay into the ASS file before burning
-      if (subscribeButton) {
-        try { appendSubscribeOverlay(subtitlePath, clipDuration); } catch (e) {
-          console.warn('[Subscribe] Could not inject overlay:', e.message);
-        }
-      }
-      console.log('📝 Burning subtitles from:', subtitlePath);
-      
-      const isWindows = process.platform === 'win32';
-      console.log(`[FFmpeg] Platform: ${process.platform}, isWindows: ${isWindows}`);
-      console.log(`[FFmpeg] Target Font: ${fontName}`);
+    // ── Build Filter Graph ──────────────────────────────────────────────────
+    // [0:v] is main video, [1:v] is animation (if present)
+    let filterGraph = '';
 
+    // 1. Crop main video
+    if (aspectRatio === '1:1') {
+      filterGraph += "[0:v]crop='trunc(min(iw,ih)/2)*2':'trunc(min(iw,ih)/2)*2'[vbase];";
+    } else {
+      filterGraph += "[0:v]crop='trunc((ih*9/16)/2)*2':'trunc(ih/2)*2'[vbase];";
+    }
+
+    let lastVideoLabel = 'vbase';
+
+    // 2. Add Animation (Chromakey + Overlay)
+    if (hasAnimation) {
+      // Remove green (0x00FF00) and scale to fit width (approx 80% of frame width)
+      filterGraph += `[1:v]colorkey=0x00FF00:0.1:0.1,scale=800:-1[vckey];`;
+      filterGraph += `[${lastVideoLabel}][vckey]overlay=x=(W-w)/2:y=H-h-200:shortest=1[vover];`;
+      lastVideoLabel = 'vover';
+    }
+
+    // 3. Burn Subtitles
+    if (hasSubtitles) {
+      const isWindows = process.platform === 'win32';
       let escaped = subtitlePath.replace(/\\/g, '/');
-      
       if (isWindows) {
-        // Windows needs special escaping for the colon: C\:/path/to/sub.ass
         escaped = escaped.replace(':', '\\:');
       } else {
-        // Linux: Ensure absolute paths are handled correctly. 
-        // We use single quotes and escape any single quotes inside the path.
         escaped = escaped.replace(/'/g, "'\\\\''");
       }
-
-      const assFilter = `ass='${escaped}'`;
-      console.log(`[FFmpeg] Final ASS filter: ${assFilter}`);
-      filters.push(assFilter);
+      filterGraph += `[${lastVideoLabel}]ass='${escaped}'[vfinal]`;
+      lastVideoLabel = 'vfinal';
     } else {
-      console.warn(`[FFmpeg] Subtitles skipped: Path not found or file missing at ${subtitlePath}`);
+      // If no subtitles, the last output is our final output
+      filterGraph = filterGraph.replace(/\[([^\]]+)\];$/, '[$1]'); // Remove trailing semicolon if any
+      // If the last label is already tagged, we're good.
+      // But if lastVideoLabel didn't get renamed to vfinal, we need to map it.
     }
-    cmd = cmd.videoFilters(filters);
 
     cmd
+      .complexFilter(filterGraph, lastVideoLabel)
       .output(outputPath)
       .on('progress', (info) => {
         if (onProgress && info.percent) onProgress(Math.round(info.percent));
       })
       .on('end', resolve)
-      .on('error', (err) => reject(new Error(`FFmpeg error: ${err.message}`)))
+      .on('error', (err) => {
+        console.error('[FFmpeg Error]', err.message);
+        reject(new Error(`FFmpeg error: ${err.message}`));
+      })
       .run();
   });
 }
