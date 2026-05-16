@@ -14,8 +14,8 @@ const {
 const { analyzeVideo, transcribeAudio } = require('../services/groqService');
 const { addVideoToQueue } = require('../services/queueService');
 
-const OUTPUTS_DIR = path.join(__dirname, '..', 'outputs');
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+const OUTPUTS_DIR = process.env.CUSTOM_OUTPUT_DIR || path.join(__dirname, '..', 'outputs');
+const UPLOADS_DIR = process.env.CUSTOM_UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(OUTPUTS_DIR)) fs.mkdirSync(OUTPUTS_DIR, { recursive: true });
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
@@ -54,7 +54,7 @@ async function uploadVideo(req, res) {
     const clipEntries = clips.map((c, i) => ({
       clipIndex: i,
       startTime: parseFloat(c.startTime || 0),
-      duration: Math.min(parseFloat(c.duration || 40), 40),
+      duration: Math.min(parseFloat(c.duration || 60), 60),
       label: c.label || `Clip ${i + 1}`,
       status: 'pending',
       progress: 0,
@@ -62,7 +62,7 @@ async function uploadVideo(req, res) {
 
     const options = {
       trimStart: parseFloat(req.body.trimStart || 0),
-      trimDuration: Math.min(parseFloat(req.body.duration || 40), 40),
+      trimDuration: Math.min(parseFloat(req.body.duration || 60), 60),
       language: req.body.language || 'en',
       captionStyle: req.body.captionStyle || 'modern',
       subtitles: req.body.subtitles !== 'false',

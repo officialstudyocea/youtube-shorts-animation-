@@ -10,24 +10,36 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 async function generateViralContent(data) {
   if (!genAI) throw new Error('GEMINI_API_KEY is missing');
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const prompt = `
-    You are an expert YouTube Shorts content creator. 
-    Based on the following transcript and context, generate viral metadata.
+    You are an expert YouTube Shorts content creator and viral strategist.
+    Analyze the following transcript (with timestamps) and identify the most engaging segment to clip for a YouTube Short.
     
     Context:
     - Video Title: ${data.originalName}
-    - Transcript: ${data.transcript}
+    - Transcript (with timestamps): 
+    ${data.transcript}
     
+    Your goal is to find a segment that captures a COMPLETE thought, a hook, or an exciting moment. 
+    CRITICAL: Do NOT cut mid-sentence. Analyze the timestamps and ensure the clip starts at the beginning of a sentence and ends at a natural pause.
+
     Return ONLY a JSON object with:
     {
       "title": "A catchy, viral hook title",
       "description": "Engaging SEO description with keywords",
       "hashtags": ["#tag1", "#tag2", "#tag3", "#tag4", "#tag5"],
       "titleVariations": ["Alt Title 1", "Alt Title 2", "Alt Title 3"],
-      "summary": "1-sentence summary of the clip"
+      "summary": "1-sentence summary of the clip",
+      "suggestedStartTime": 12.5,
+      "suggestedDuration": 30
     }
+
+    Rules:
+    - suggestedStartTime: The timestamp (in seconds) where the best segment starts.
+    - suggestedDuration: The length of the segment in seconds. 
+    - The duration MUST be between 10 and 60 seconds.
+    - The segment MUST capture a complete thought. Use the timestamps to be precise.
   `;
 
   try {

@@ -51,14 +51,17 @@ function getGroqClient() {
 function buildPrompt({ originalName, duration, width, height, language = 'en', transcript = '' }) {
   const topic = originalName.replace(/\.[^.]+$/, '').replace(/[_\-]/g, ' ');
   return `
-You are a viral YouTube Shorts content strategist. Analyze this video clip and generate optimized content metadata.
+You are a viral YouTube Shorts content strategist. Analyze this video transcript and identify the most engaging, viral segment to clip.
 
 Video Details:
 - Topic/Filename: "${topic}"
-- Duration: ${duration ? Math.round(duration) + ' seconds' : 'unknown'}
-- Resolution: ${width}x${height}
+- Original Duration: ${duration ? Math.round(duration) + ' seconds' : 'unknown'}
 - Target Language: ${language}
-- Transcript: "${transcript || 'No transcript available'}"
+- Transcript (with timestamps): 
+"${transcript || 'No transcript available'}"
+
+Your goal is to find a segment that captures a COMPLETE thought, a hook, or an exciting moment. 
+CRITICAL: Do NOT cut mid-sentence. Analyze the timestamps and ensure the clip starts at the beginning of a sentence and ends at a natural pause.
 
 Generate a JSON response with EXACTLY this structure:
 {
@@ -68,6 +71,7 @@ Generate a JSON response with EXACTLY this structure:
   "category": "One of: Gaming, Education, Entertainment, Lifestyle, Tech, Sports, Music, Comedy, News, DIY",
   "postingTime": "Best time to post e.g. 'Friday 7PM EST'",
   "viralScore": 7.5,
+  "suggestedStartTime": 15.5,
   "suggestedDuration": 35,
   "summary": "A concise summary of what was discussed in the clip (2-3 sentences)",
   "titleVariations": [
@@ -79,11 +83,11 @@ Generate a JSON response with EXACTLY this structure:
 }
 
 Rules:
-- Title must be attention-grabbing, use power words, emojis OK
-- Hashtags must be trending and relevant
-- viralScore between 1-10 (be honest)
-- suggestedDuration: You MUST analyze the transcript and suggest a duration (in seconds) that captures a complete thought, hook, or exciting moment. Do NOT just return a default value like 25. It MUST be between 10 and 40 seconds. Aim for the longest possible engaging segment without filler.
-- Respond ONLY with valid JSON, no markdown, no extra text
+- suggestedStartTime: The timestamp (in seconds) where the best segment starts.
+- suggestedDuration: The length of the segment in seconds. 
+- The duration MUST be between 10 and 60 seconds.
+- The segment MUST capture a complete thought. Use the timestamps to be precise.
+- Respond ONLY with valid JSON, no markdown, no extra text.
 `.trim();
 }
 
@@ -135,7 +139,8 @@ async function analyzeVideo(videoData) {
         titleVariations: Array.isArray(parsed.titleVariations) ? parsed.titleVariations : [],
         uploadTips:      parsed.uploadTips      || 'Post consistently for best results.',
         summary:         parsed.summary         || 'No summary available.',
-        suggestedDuration: typeof parsed.suggestedDuration === 'number' ? Math.min(parsed.suggestedDuration, 40) : null,
+        suggestedStartTime: typeof parsed.suggestedStartTime === 'number' ? parsed.suggestedStartTime : null,
+        suggestedDuration: typeof parsed.suggestedDuration === 'number' ? Math.min(parsed.suggestedDuration, 60) : null,
         language:        videoData.language     || 'en',
       };
     } catch (err) {

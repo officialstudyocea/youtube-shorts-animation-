@@ -44,10 +44,10 @@ function ClipRow({ clip, index, onChange, onRemove, videoDuration }) {
       <div>
         <label className="text-[11px] text-slate-500 block mb-0.5">Length (s)</label>
         <input
-          type="number" min="1" max="30" step="0.5"
+          type="number" min="10" max="60" step="0.5"
           className="input-field py-1.5 text-base"
           value={clip.duration}
-          onChange={(e) => onChange(index, 'duration', Math.min(30, parseFloat(e.target.value) || 15))}
+          onChange={(e) => onChange(index, 'duration', Math.min(60, parseFloat(e.target.value) || 15))}
         />
       </div>
       <button
@@ -122,25 +122,29 @@ export default function UploadZone({ onSuccess }) {
   const updateClip = (i, field, val) =>
     setClips(clips.map((c, idx) => idx === i ? { ...c, [field]: val } : c));
 
-  // Auto-generate clips
+  // Auto-generate clips (Basic version)
   const autoSplit = (type = '3-clips') => {
     if (!videoDuration) return;
     
     let generated = [];
     if (type === 'all') {
-      const segLen = 30;
+      // Split into 60s chunks (max duration)
+      const segLen = 60;
       const count = Math.ceil(videoDuration / segLen);
       generated = Array.from({ length: count }, (_, i) => {
         const start = i * segLen;
         const duration = Math.min(segLen, videoDuration - start);
-        return { label: `Clip ${i + 1}`, startTime: start, duration };
-      }).filter(c => c.duration > 0.5);
+        return { label: `Part ${i + 1}`, startTime: start, duration };
+      }).filter(c => c.duration >= 10); // Keep clips at least 10s as requested
     } else {
+      // Split into 3 equal-ish clips, target 30-60s each
       const count = 3;
-      const segLen = Math.min(30, Math.floor(videoDuration / count));
+      const totalAvailable = Math.min(videoDuration, 180); // Look at first 3 mins
+      const segLen = Math.max(10, Math.min(60, Math.floor(totalAvailable / count)));
+      
       generated = Array.from({ length: count }, (_, i) => ({
-        label: `Clip ${i + 1}`,
-        startTime: i * segLen,
+        label: `Hook ${i + 1}`,
+        startTime: i * (videoDuration / (count + 1)), // Space them out
         duration: segLen,
       }));
     }
@@ -289,7 +293,7 @@ export default function UploadZone({ onSuccess }) {
 
             {videoDuration && (
               <p className="text-sm text-slate-600">
-                Source video: {videoDuration}s · Each clip max 30s
+                Source video: {videoDuration}s · Each clip max 60s
               </p>
             )}
           </motion.div>
@@ -316,9 +320,9 @@ export default function UploadZone({ onSuccess }) {
             >
               {mode === 'single' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Duration (max 30s)</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-1.5">Duration (max 60s)</label>
                   <select id="duration-select" className="input-field" value={options.duration} onChange={(e) => setOptions({ ...options, duration: e.target.value })}>
-                    {['15', '30'].map((v) => <option key={v} value={v}>{v}s</option>)}
+                    {['15', '30', '45', '60'].map((v) => <option key={v} value={v}>{v}s</option>)}
                   </select>
                 </div>
               )}

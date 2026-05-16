@@ -14,7 +14,7 @@ const { analyzeVideo, transcribeAudio } = require('./services/groqService');
 const { generateViralContent, transliterateToHinglish } = require('./services/geminiService');
 const { generateBackupContent } = require('./services/openRouterService');
 
-const OUTPUTS_DIR = path.join(__dirname, 'outputs');
+const OUTPUTS_DIR = process.env.CUSTOM_OUTPUT_DIR || path.join(__dirname, 'outputs');
 if (!fs.existsSync(OUTPUTS_DIR)) fs.mkdirSync(OUTPUTS_DIR, { recursive: true });
 
 async function processVideoJob(videoId, mode) {
@@ -67,7 +67,7 @@ async function getAIContent(data) {
           titleVariations: [`${topic} goes CRAZY 😱`, `POV: ${topic} 💯`, `Nobody talks about ${topic}...`],
           uploadTips: 'Post consistently for best results.',
           summary: 'Metadata generated via fallback.',
-          suggestedDuration: data.duration || 30
+          suggestedDuration: Math.min(data.duration || 30, 60)
         };
       }
     }
@@ -88,10 +88,14 @@ async function handleSingleClip(video) {
     try {
       const wavPath = audioPath.replace('.mp3', '.wav');
       console.log(`[Whisper] Transcribing ${video.id}...`);
-      await extractAudioClip(video.originalPath, wavPath, video.options?.trimStart || 0, 40);
+      // Extract up to 10 minutes of audio to give AI more context
+      await extractAudioClip(video.originalPath, wavPath, 0, 600); 
       const transcription = await transcribeAudio(wavPath, video.options?.language);
       
-      transcriptionText = transcription.text || '';
+      // Format transcript with timestamps for AI analysis
+      transcriptionText = (transcription.segments || [])
+        .map(s => `[${s.start.toFixed(1)}s - ${s.end.toFixed(1)}s] ${s.text}`)
+        .join('\n');
       segments = transcription.segments || [];
       words = transcription.words || [];
       
@@ -144,12 +148,16 @@ async function handleSingleClip(video) {
   }
 
   const finalDuration = ai.suggestedDuration || video.options?.trimDuration || 30;
+  // If the user didn't specify a start time (still 0), let the AI decide the best hook
+  const finalStartTime = (video.options?.trimStart === 0 && ai.suggestedStartTime !== null && ai.suggestedStartTime !== undefined)
+    ? ai.suggestedStartTime
+    : (video.options?.trimStart || 0);
 
   // 3. FFmpeg Process
   await processVideo({
     inputPath:    video.originalPath,
     outputPath,
-    startTime:    video.options?.trimStart || 0,
+    startTime:    finalStartTime,
     duration:     finalDuration,
     subtitlePath: video.options?.subtitles !== false ? subtitlePath : null,
     aspectRatio:  video.options?.aspectRatio || '9:16',
@@ -211,7 +219,7 @@ async function handleMultiClip(video) {
         try {
           const wavPath = audioPath.replace('.mp3', '.wav');
           console.log(`[Whisper-Multi] Clip ${i}: Extracting audio from ${clip.startTime}s...`);
-          await extractAudioClip(video.originalPath, wavPath, clip.startTime, clip.duration || 40);
+          await extractAudioClip(video.originalPath, wavPath, clip.startTime, clip.duration || 60);
           const transcription = await transcribeAudio(wavPath, video.options?.language);
           
           transcriptionText = transcription.text || '';

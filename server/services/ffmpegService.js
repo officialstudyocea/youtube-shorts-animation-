@@ -282,12 +282,12 @@ function appendSubscribeOverlay(assPath, videoDuration) {
 /**
  * Extract a short audio clip as mono MP3 for Whisper transcription.
  */
-function extractAudioClip(inputPath, outputPath, startTime = 0, duration = 40) {
+function extractAudioClip(inputPath, outputPath, startTime = 0, duration = 60) {
   return new Promise((resolve, reject) => {
     // Ensure we use the correct format for WAV
     ffmpeg(inputPath)
       .seekInput(startTime)
-      .duration(Math.min(duration, 40))
+      .duration(Math.min(duration, 600)) // Increased to 10 mins for better AI context
       .noVideo()
       .toFormat('wav')
       .audioChannels(1)
@@ -312,14 +312,14 @@ function extractAudioClip(inputPath, outputPath, startTime = 0, duration = 40) {
  * @param {string}   opts.inputPath
  * @param {string}   opts.outputPath
  * @param {number}   [opts.startTime=0]
- * @param {number}   [opts.duration=40]
+ * @param {number}   [opts.duration=60]
  * @param {string}   [opts.subtitlePath]
  * @param {Function} [opts.onProgress]
  * @returns {Promise<void>}
  */
-function processVideo({ inputPath, outputPath, startTime = 0, duration = 40, subtitlePath, aspectRatio = '9:16', onProgress, subscribeButton = true }) {
+function processVideo({ inputPath, outputPath, startTime = 0, duration = 60, subtitlePath, aspectRatio = '9:16', onProgress, subscribeButton = true }) {
   return new Promise((resolve, reject) => {
-    const clipDuration = Math.min(duration, 40);
+    const clipDuration = Math.min(duration, 60); // Increased to 60s as requested
 
     let cmd = ffmpeg(inputPath)
       .seekInput(startTime)
